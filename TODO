@@ -1,9 +1,27 @@
+
+gameplay
+========
+- collisions in online mode should be fatal to all parties
+- collisions in offline mode could be fatal to all parties, or proximity alert could reveal positions of both parties temporarily
+- some way to kill entities
+- firing in offline mode should reveal position temporarily
+- some AI for enemies (attach player, evade torpedoes)
+- some levels/missions
+- some nifty visual effects (sonar scan line, blips, animations...)
+
+
+release checklist
+=================
+- set definitive name in README.md and game.js#onload
+- set game slug in Twitter URL in game.js#onkeyup
+- make sure all PNGs are tinified
+- test on Chrome/Firefox/Edge + Chrome/Firefox for Android
+
 game engine
 ===========
 - camera-window + edge-snapping + lerp-smoothing (new)
 - sound engine (Soundbox smaller player, Sonant-X, Famitracker, lsdj)
 - gamepad support
-- ? memoize the character's position to avoid calling ALPHABET.indexOf(c) over and over
 
 build chain
 ===========

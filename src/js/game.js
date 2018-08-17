@@ -1,4 +1,4 @@
-import { rand } from './utils';
+import { rand, choice } from './utils';
 
 const _window = window;
 const _document = document;
@@ -29,7 +29,7 @@ const ALIGN_LEFT = 0;
 const ALIGN_CENTER = 1;
 const ALIGN_RIGHT = 2;
 const ATLAS = {
-  hero: {
+  zuchini: {
     move: [
       { x: 0, y: 0, w: 16, h: 18 },
       { x: 16, y: 0, w: 16, h: 18 },
@@ -37,13 +37,6 @@ const ATLAS = {
       { x: 48, y: 0, w: 16, h: 18 },
       { x: 64, y: 0, w: 16, h: 18 },
     ],
-    speed: 100,
-  },
-  foe: {
-    'move': [
-      { x: 0, y: 0, w: 16, h: 18 },
-    ],
-    speed: 0,
   },
 };
 const CHARSET_SIZE = 8; // in px
@@ -64,13 +57,13 @@ let running = true;
 function startGame() {
   konamiIndex = 0;
   countdown = 60;
-  hero = createEntity('hero', WIDTH / 2, HEIGHT / 2);
+  hero = createEntity('zuchini', WIDTH / 2, HEIGHT / 2, 100);
   entities = [
     hero,
-    createEntity('foe', 100, 100),
-    createEntity('foe', 100, 118),
-    createEntity('foe', 116, 118),
-    createEntity('foe', 116, 100),
+    createEntity('zuchini', 20, 20),
+    createEntity('zuchini', 20, HEIGHT - 20),
+    createEntity('zuchini', WIDTH - 20, 20),
+    createEntity('zuchini', WIDTH - 20, HEIGHT - 20),
   ];
   screen = GAME_SCREEN;
 };
@@ -174,25 +167,34 @@ function constrainToViewport(entity) {
   }
 };
 
-function createEntity(type, x = 0, y = 0) {
+function createEntity(type, x = 0, y = 0, speed = 20) {
   const action = 'move';
-  const sprite = ATLAS[type][action][0];
+  const sprites = ATLAS[type][action];
+  const frame = rand(0, sprites.length - 1);
   return {
     action,
-    frame: 0,
+    frame,
     frameTime: 0,
-    h: sprite.h,
+    h: sprites[frame].h,
+    lastX: x,
+    lastY: y,
     moveX: 0,
     moveY: 0,
-    speed: ATLAS[type].speed,
+    online: true,
+    speed,
     type,
-    w: sprite.w,
+    w: sprites[frame].w,
     x,
     y,
   };
 };
 
-function updateEntity(entity) {
+function updateLastPosition(entity) {
+  entity.lastX = entity.x;
+  entity.lastY = entity.y;
+};
+
+function updatePosition(entity) {
   // update animation frame
   entity.frameTime += elapsedTime;
   if (entity.frameTime > FRAME_DURATION) {
@@ -206,6 +208,16 @@ function updateEntity(entity) {
   entity.y += distance * entity.moveY;
 };
 
+function updateDirection(entity) {
+  let { lastDirection = 0 } = entity;
+  lastDirection += elapsedTime;
+  if (Math.random() < lastDirection / 10) {
+    entity[`move${Math.random() < 0.5 ? 'X' : 'Y'}`] = choice([-1, 0, 1]);
+    lastDirection = 0;
+  }
+  entity.lastDirection = lastDirection;
+};
+
 function update() {
   switch (screen) {
     case GAME_SCREEN:
@@ -213,14 +225,24 @@ function update() {
       if (countdown < 0) {
         screen = END_SCREEN;
       }
-      entities.forEach(updateEntity);
+      updatePosition(hero);
+      constrainToViewport(hero);
       entities.slice(1).forEach((entity) => {
+        updateDirection(entity);
+        updatePosition(entity);
         const test = testAABBCollision(hero, entity);
         if (test.collide) {
           correctAABBCollision(hero, entity, test);
         }
+        if (hero.switchMode && hero.online) {
+          updateLastPosition(entity);
+        }
+        constrainToViewport(entity);
       });
-      constrainToViewport(hero);
+      if (hero.switchMode) {
+        hero.switchMode = false;
+        hero.online = !hero.online;
+      }
       break;
   }
 };
@@ -242,21 +264,21 @@ function render() {
 
   switch (screen) {
     case TITLE_SCREEN:
-      renderText('title screen', CHARSET_SIZE, CHARSET_SIZE);
+      renderText('subwar 2051', CHARSET_SIZE, CHARSET_SIZE);
       renderText('press any key', WIDTH / 2, HEIGHT / 2, ALIGN_CENTER);
       if (konamiIndex === konamiCode.length) {
         renderText('konami mode on', WIDTH - CHARSET_SIZE, CHARSET_SIZE, ALIGN_RIGHT);
       }
       break;
     case GAME_SCREEN:
-      renderText('game screen', CHARSET_SIZE, CHARSET_SIZE);
+      renderText(`sonar: ${hero.online ? 'on' : 'off'}line`, CHARSET_SIZE, CHARSET_SIZE);
       renderCountdown();
       // uncomment to debug mobile input handlers
       // renderDebugTouch();
       entities.forEach(renderEntity);
       break;
     case END_SCREEN:
-      renderText('end screen', CHARSET_SIZE, CHARSET_SIZE);
+      renderText('game over', CHARSET_SIZE, CHARSET_SIZE);
       break;
   }
 
@@ -272,10 +294,12 @@ function renderCountdown() {
 
 function renderEntity(entity) {
   const sprite = ATLAS[entity.type][entity.action][entity.frame];
+  const x = (hero.online && entity.online || hero === entity) ? entity.x : entity.lastX;
+  const y = (hero.online && entity.online || hero === entity) ? entity.y : entity.lastY;
   BUFFER_CTX.drawImage(
     tileset,
     sprite.x, sprite.y, sprite.w, sprite.h,
-    Math.round(entity.x), Math.round(entity.y), sprite.w, sprite.h
+    Math.round(x), Math.round(y), sprite.w, sprite.h
   );
 };
 
@@ -322,7 +346,7 @@ function toggleLoop(value) {
 
 onload = async (e) => {
   // the real "main" of the game
-  _document.title = 'Game Jam Boilerplate';
+  _document.title = 'Subwar 2051';
 
   onresize();
 
@@ -369,26 +393,24 @@ onkeydown = function(e) {
   if (!e.repeat) {
     switch (screen) {
       case GAME_SCREEN:
-        switch (e.which) {
-          case 37: // Left arrow
-          case 65: // A - QWERTY
-          case 81: // Q - AZERTY
+        switch (e.code) {
+          case 'ArrowLeft':
+          case 'KeyA':
             hero.moveX = -1;
             break;
-          case 38: // Up arrow
-          case 90: // W - QWERTY
-          case 87: // Z - AZERTY
+          case 'ArrowUp':
+          case 'KeyW':
             hero.moveY = -1;
             break;
-          case 39: // Right arrow
-          case 68: // D
+          case 'ArrowRight':
+          case 'KeyD':
             hero.moveX = 1;
             break;
-          case 40: // Down arrow
-          case 83: // S
+          case 'ArrowDown':
+          case 'KeyS':
             hero.moveY = 1;
             break;
-          case 80: // P
+          case 'KeyP':
             // Pause game as soon as key is pressed
             toggleLoop(!running);
             break;
@@ -408,30 +430,28 @@ onkeyup = function(e) {
       }
       break;
     case GAME_SCREEN:
-      switch (e.which) {
-        case 37: // Left arrow
-        case 65: // A - QWERTY
-        case 81: // Q - AZERTY
+      switch (e.code) {
+        case 'ArrowLeft':
+        case 'KeyA':
+        case 'ArrowRight':
+        case 'KeyD':
           hero.moveX = 0;
           break;
-        case 38: // Up arrow
-        case 90: // W - QWERTY
-        case 87: // Z - AZERTY
+        case 'ArrowUp':
+        case 'KeyW':
+        case 'ArrowDown':
+        case 'KeyS':
           hero.moveY = 0;
           break;
-        case 39: // Right arrow
-        case 68: // D
-          hero.moveX = 0;
-          break;
-        case 40: // Down arrow
-        case 83: // S
-          hero.moveY = 0;
+        case 'KeyO': // when playing with arrows
+        case 'KeyY': // when playing with WASD
+          hero.switchMode = true;
           break;
       }
       break;
     case END_SCREEN:
-      switch (e.which) {
-        case 84: // T
+      switch (e.code) {
+        case 'KeyT':
           open(`https://twitter.com/intent/tweet?text=viral%20marketing%20message%20https%3A%2F%2Fgoo.gl%2F${'some tiny Google url here'}`, '_blank');
           break;
         default:
