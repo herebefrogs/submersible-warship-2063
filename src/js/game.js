@@ -29,20 +29,18 @@ const ALIGN_LEFT = 0;
 const ALIGN_CENTER = 1;
 const ALIGN_RIGHT = 2;
 const ATLAS = {
-  zuchini: {
-    move: [
-      { x: 0, y: 0, w: 16, h: 18 },
-      { x: 16, y: 0, w: 16, h: 18 },
-      { x: 32, y: 0, w: 16, h: 18 },
-      { x: 48, y: 0, w: 16, h: 18 },
-      { x: 64, y: 0, w: 16, h: 18 },
-    ],
+  player: {
+    w: 10,
+    h: 10,
+  },
+  'sub1': {
+    w: 10,
+    h: 10,
   },
 };
 const CHARSET_SIZE = 8; // in px
 const FRAME_DURATION = 0.1; // duration of 1 animation frame, in seconds
 let charset = '';   // alphabet sprite, filled in by build script, overwritten at runtime
-let tileset = '';   // characters sprite, filled in by build script, overwritten at runtime
 
 // LOOP VARIABLES
 
@@ -57,13 +55,13 @@ let running = true;
 function startGame() {
   konamiIndex = 0;
   countdown = 60;
-  hero = createEntity('zuchini', WIDTH / 2, HEIGHT / 2, 100);
+  hero = createEntity('player', WIDTH / 2, HEIGHT / 2, 30);
   entities = [
     hero,
-    createEntity('zuchini', 20, 20),
-    createEntity('zuchini', 20, HEIGHT - 20),
-    createEntity('zuchini', WIDTH - 20, 20),
-    createEntity('zuchini', WIDTH - 20, HEIGHT - 20),
+    createEntity('sub1', 20, 20),
+    createEntity('sub1', 20, HEIGHT - 20),
+    createEntity('sub1', WIDTH - 20, 20),
+    createEntity('sub1', WIDTH - 20, HEIGHT - 20),
   ];
   screen = GAME_SCREEN;
 };
@@ -168,14 +166,9 @@ function constrainToViewport(entity) {
 };
 
 function createEntity(type, x = 0, y = 0, speed = 20) {
-  const action = 'move';
-  const sprites = ATLAS[type][action];
-  const frame = rand(0, sprites.length - 1);
+  const { w, h } = ATLAS[type];
   return {
-    action,
-    frame,
-    frameTime: 0,
-    h: sprites[frame].h,
+    h,
     lastX: x,
     lastY: y,
     moveX: 0,
@@ -183,29 +176,45 @@ function createEntity(type, x = 0, y = 0, speed = 20) {
     online: true,
     speed,
     type,
-    w: sprites[frame].w,
+    w,
     x,
     y,
   };
 };
 
-function updateLastPosition(entity) {
-  entity.lastX = entity.x;
-  entity.lastY = entity.y;
+function updateVisiblePosition(entity, shouldUpdate) {
+  if (shouldUpdate) {
+    entity.visibleX = entity.x;
+    entity.visibleY = entity.y;
+    entity.visibleAngle = entity.angle;
+  }
 };
 
-function updatePosition(entity) {
-  // update animation frame
+function updateAnimation(entity) {
   entity.frameTime += elapsedTime;
   if (entity.frameTime > FRAME_DURATION) {
     entity.frameTime -= FRAME_DURATION;
     entity.frame += 1;
     entity.frame %= ATLAS[entity.type][entity.action].length;
   }
-  // update position
+};
+
+function updatePosition(entity) {
   const distance = entity.speed * elapsedTime;
   entity.x += distance * entity.moveX;
   entity.y += distance * entity.moveY;
+
+  // TODO there is got to be a way to make this formula more sensible
+  entity.angle =
+    entity.moveX < 0 && entity.moveY < 0 ? -45 :
+    entity.moveX < 0 && entity.moveY === 0 ? -90 :
+    entity.moveX < 0 && entity.moveY > 0 ? -135 :
+    entity.moveX === 0 && entity.moveY < 0 ? 0 :
+    entity.moveX > 0 && entity.moveY < 0 ? 45 :
+    entity.moveX > 0 && entity.moveY === 0 ? 90 :
+    entity.moveX > 0 && entity.moveY > 0 ? 135 :
+    entity.moveX === 0 && entity.moveY > 0 ? 180 : 0;
+
 };
 
 function updateDirection(entity) {
@@ -227,7 +236,6 @@ function update() {
       }
       updatePosition(hero);
       constrainToViewport(hero);
-      const hasSwitchedMode = hero.switchModeTime === lastTime;
       entities.slice(1).forEach((entity) => {
         updateDirection(entity);
         updatePosition(entity);
@@ -235,14 +243,10 @@ function update() {
         if (test.collide) {
           correctAABBCollision(hero, entity, test);
         }
-        if (hasSwitchedMode && hero.online) {
-          updateLastPosition(entity);
-        }
+        updateVisiblePosition(entity, hero.online && entity.online);
         constrainToViewport(entity);
       });
-      if (hasSwitchedMode) {
-        hero.online = !hero.online;
-      }
+
       break;
   }
 };
@@ -259,7 +263,7 @@ function blit() {
 };
 
 function render() {
-  BUFFER_CTX.fillStyle = '#fff';
+  BUFFER_CTX.fillStyle = 'rgb(20,35,40)';
   BUFFER_CTX.fillRect(0, 0, WIDTH, HEIGHT);
 
   switch (screen) {
@@ -271,11 +275,11 @@ function render() {
       }
       break;
     case GAME_SCREEN:
-      renderText(`sonar: ${hero.online ? 'on' : 'off'}line`, CHARSET_SIZE, CHARSET_SIZE);
-      renderCountdown();
       // uncomment to debug mobile input handlers
       // renderDebugTouch();
       entities.forEach(renderEntity);
+      renderText(`sonar: ${hero.online ? 'on' : 'off'}line`, CHARSET_SIZE, CHARSET_SIZE);
+      renderCountdown();
       break;
     case END_SCREEN:
       renderText('game over', CHARSET_SIZE, CHARSET_SIZE);
@@ -293,14 +297,50 @@ function renderCountdown() {
 };
 
 function renderEntity(entity) {
-  const sprite = ATLAS[entity.type][entity.action][entity.frame];
-  const x = (hero.online && entity.online || hero === entity) ? entity.x : entity.lastX;
-  const y = (hero.online && entity.online || hero === entity) ? entity.y : entity.lastY;
-  BUFFER_CTX.drawImage(
-    tileset,
-    sprite.x, sprite.y, sprite.w, sprite.h,
-    Math.round(x), Math.round(y), sprite.w, sprite.h
-  );
+  if (entity.type === 'player') {
+    renderPlayerSub(entity);
+  } else {
+    renderEnemySub(entity);
+  }
+};
+
+function renderPlayerSub(entity) {
+  const { x, y, angle } = entity;
+  BUFFER_CTX.save();
+  BUFFER_CTX.beginPath();
+  BUFFER_CTX.fillStyle = 'rgb(75,190,250)';
+  BUFFER_CTX.translate(Math.round(x), Math.round(y));
+  BUFFER_CTX.rotate(angle/180*Math.PI)
+  BUFFER_CTX.arc(0, 0, 5, 0, Math.PI+Math.PI);
+  BUFFER_CTX.fillRect(-2, -12, 4, 12);
+  BUFFER_CTX.fill()
+  BUFFER_CTX.closePath();
+  BUFFER_CTX.strokeStyle = 'rgb(70,105,105)';
+  BUFFER_CTX.beginPath();
+  // BUFFER_CTX.lineDashOffset = 1;
+  BUFFER_CTX.arc(0, 0, 40, 0, Math.PI+Math.PI);
+  BUFFER_CTX.stroke();
+  BUFFER_CTX.closePath();
+  BUFFER_CTX.beginPath();
+  BUFFER_CTX.setLineDash([2, 4  ]);
+  BUFFER_CTX.arc(0, 0, 20, 0, Math.PI+Math.PI);
+  BUFFER_CTX.stroke();
+  BUFFER_CTX.closePath();
+  BUFFER_CTX.restore();
+};
+
+function renderEnemySub(entity) {
+  const { visibleX : x, visibleY : y, visibleAngle : angle } = entity;
+  BUFFER_CTX.save();
+  BUFFER_CTX.beginPath();
+  BUFFER_CTX.fillStyle = 'rgb(230,90,100)';
+  BUFFER_CTX.translate(Math.round(x), Math.round(y));
+  BUFFER_CTX.rotate(angle/180*Math.PI)
+  BUFFER_CTX.fillRect(-5, -5, 10, 10);
+  BUFFER_CTX.fillRect(-2, -12, 4, 12);
+  BUFFER_CTX.fill()
+  BUFFER_CTX.closePath();
+  BUFFER_CTX.restore();
 };
 
 function renderText(msg, x, y, align = ALIGN_LEFT, scale = 1) {
@@ -351,7 +391,6 @@ onload = async (e) => {
   onresize();
 
   charset = await loadImg(charset);
-  tileset = await loadImg(tileset);
   toggleLoop(true);
 };
 
@@ -445,6 +484,7 @@ onkeyup = function(e) {
           break;
         case 'KeyO': // when playing with arrows
         case 'KeyF': // when playing with WASD
+          hero.online = !hero.online;
           hero.switchModeTime = currentTime;
           break;
       }

@@ -17,7 +17,6 @@ const inputOptions = {
     // embed images into source files as data URI
     dataurl({
       charset: 'src/img/charset.png',
-      tileset: 'src/img/tileset.png',
     }),
   ],
 };
