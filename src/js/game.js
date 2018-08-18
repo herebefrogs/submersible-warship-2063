@@ -227,6 +227,7 @@ function update() {
       }
       updatePosition(hero);
       constrainToViewport(hero);
+      const hasSwitchedMode = hero.switchModeTime === lastTime;
       entities.slice(1).forEach((entity) => {
         updateDirection(entity);
         updatePosition(entity);
@@ -234,13 +235,12 @@ function update() {
         if (test.collide) {
           correctAABBCollision(hero, entity, test);
         }
-        if (hero.switchMode && hero.online) {
+        if (hasSwitchedMode && hero.online) {
           updateLastPosition(entity);
         }
         constrainToViewport(entity);
       });
-      if (hero.switchMode) {
-        hero.switchMode = false;
+      if (hasSwitchedMode) {
         hero.online = !hero.online;
       }
       break;
@@ -444,8 +444,8 @@ onkeyup = function(e) {
           hero.moveY = 0;
           break;
         case 'KeyO': // when playing with arrows
-        case 'KeyY': // when playing with WASD
-          hero.switchMode = true;
+        case 'KeyF': // when playing with WASD
+          hero.switchModeTime = currentTime;
           break;
       }
       break;
