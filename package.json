@@ -1,7 +1,7 @@
 {
-  "name": "gamejam-boilerplate",
+  "name": "js13kgames-2018",
   "version": "1.0.0",
-  "description": "Boilerplate for Game Jams like JS13KGames",
+  "description": "JS13KGames 2018 entry (theme: offline)",
   "main": "script/build.js",
   "scripts": {
     "start": "node scripts/build.js --watch",

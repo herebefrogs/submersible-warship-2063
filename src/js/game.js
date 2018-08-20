@@ -23,6 +23,8 @@ const WIDTH = 640;
 const HEIGHT = 480;
 const BUFFER = c.cloneNode();           // visible portion of map
 const BUFFER_CTX = BUFFER.getContext('2d');
+const TILESET = c.cloneNode();
+const TILESET_CTX = TILESET.getContext('2d');
 
 const ALPHABET = 'abcdefghijklmnopqrstuvwxyz0123456789.:!-%,/';
 const ALIGN_LEFT = 0;
@@ -58,10 +60,10 @@ function startGame() {
   hero = createEntity('player', WIDTH / 2, HEIGHT / 2, 30);
   entities = [
     hero,
-    createEntity('sub1', 20, 20),
-    createEntity('sub1', 20, HEIGHT - 20),
-    createEntity('sub1', WIDTH - 20, 20),
-    createEntity('sub1', WIDTH - 20, HEIGHT - 20),
+    createEntity('sub1', 100, 100),
+    createEntity('sub1', 100, HEIGHT - 100),
+    createEntity('sub1', WIDTH - 100, 100),
+    createEntity('sub1', WIDTH - 100, HEIGHT - 100),
   ];
   screen = GAME_SCREEN;
 };
@@ -277,6 +279,8 @@ function render() {
     case GAME_SCREEN:
       // uncomment to debug mobile input handlers
       // renderDebugTouch();
+      renderGrid();
+      entities.forEach(renderRadar);
       entities.forEach(renderEntity);
       renderText(`sonar: ${hero.online ? 'on' : 'off'}line`, CHARSET_SIZE, CHARSET_SIZE);
       renderCountdown();
@@ -289,11 +293,31 @@ function render() {
   blit();
 };
 
+function initTileset() {
+  TILESET.width = TILESET.height = 64;
+  TILESET_CTX.strokeStyle = 'rgb(40,55,50)';
+  TILESET_CTX.beginPath();
+  TILESET_CTX.moveTo(0, 4);
+  TILESET_CTX.lineTo(8, 4);
+  TILESET_CTX.stroke();
+  TILESET_CTX.closePath();
+  TILESET_CTX.beginPath();
+  TILESET_CTX.moveTo(4, 0);
+  TILESET_CTX.lineTo(4, 8);
+  TILESET_CTX.stroke();
+  TILESET_CTX.closePath();
+};
+
 function renderCountdown() {
   const minutes = Math.floor(Math.ceil(countdown) / 60);
   const seconds = Math.ceil(countdown) - minutes * 60;
   renderText(`${minutes}:${seconds <= 9 ? '0' : ''}${seconds}`, WIDTH - CHARSET_SIZE, CHARSET_SIZE, ALIGN_RIGHT);
 
+};
+
+function renderGrid() {
+  BUFFER_CTX.fillStyle = BUFFER_CTX.createPattern(TILESET, 'repeat');
+  BUFFER_CTX.fillRect(0, 0, WIDTH, HEIGHT);
 };
 
 function renderEntity(entity) {
@@ -304,41 +328,87 @@ function renderEntity(entity) {
   }
 };
 
+function renderRadar(entity) {
+  if (entity.type === 'player') {
+    renderPlayerRadar(entity);
+  } else {
+    renderEnemyRadar(entity);
+  }
+};
+
+
 function renderPlayerSub(entity) {
   const { x, y, angle } = entity;
   BUFFER_CTX.save();
-  BUFFER_CTX.beginPath();
-  BUFFER_CTX.fillStyle = 'rgb(75,190,250)';
+  BUFFER_CTX.shadowBlur = 10;
   BUFFER_CTX.translate(Math.round(x), Math.round(y));
-  BUFFER_CTX.rotate(angle/180*Math.PI)
+  BUFFER_CTX.fillStyle = 'rgb(75,190,250)';
+  BUFFER_CTX.shadowColor = BUFFER_CTX.fillStyle;
+  BUFFER_CTX.rotate(angle /180 * Math.PI)
+  BUFFER_CTX.beginPath();
   BUFFER_CTX.arc(0, 0, 5, 0, Math.PI+Math.PI);
   BUFFER_CTX.fillRect(-2, -12, 4, 12);
   BUFFER_CTX.fill()
   BUFFER_CTX.closePath();
+  BUFFER_CTX.restore();
+};
+
+function renderPlayerRadar(entity) {
+  const { x, y, angle, dashOffset = 0, dashTime = 0 } = entity;
+  BUFFER_CTX.save();
+  BUFFER_CTX.shadowBlur = 10;
+  BUFFER_CTX.translate(Math.round(x), Math.round(y));
+  // radar
   BUFFER_CTX.strokeStyle = 'rgb(70,105,105)';
+  BUFFER_CTX.shadowColor = BUFFER_CTX.strokeStyle;
   BUFFER_CTX.beginPath();
-  // BUFFER_CTX.lineDashOffset = 1;
+  BUFFER_CTX.arc(0, 0, 80, 0, Math.PI+Math.PI);
+  BUFFER_CTX.stroke();
+  BUFFER_CTX.closePath();
+  // proximity alert
+  BUFFER_CTX.beginPath();
+  BUFFER_CTX.lineDashOffset = dashOffset;
+  BUFFER_CTX.setLineDash([4, 8]);
   BUFFER_CTX.arc(0, 0, 40, 0, Math.PI+Math.PI);
   BUFFER_CTX.stroke();
   BUFFER_CTX.closePath();
-  BUFFER_CTX.beginPath();
-  BUFFER_CTX.setLineDash([2, 4  ]);
-  BUFFER_CTX.arc(0, 0, 20, 0, Math.PI+Math.PI);
-  BUFFER_CTX.stroke();
-  BUFFER_CTX.closePath();
   BUFFER_CTX.restore();
+  entity.dashTime = dashTime + elapsedTime;
+  if (entity.dashTime > 0.1) {
+    entity.dashTime -= 0.1;
+    entity.dashOffset = (dashOffset-1) % 12;  // next line dash: 4, 8, 12 <- offset
+  }
 };
 
 function renderEnemySub(entity) {
   const { visibleX : x, visibleY : y, visibleAngle : angle } = entity;
   BUFFER_CTX.save();
   BUFFER_CTX.beginPath();
-  BUFFER_CTX.fillStyle = 'rgb(230,90,100)';
+  // sub
+  BUFFER_CTX.shadowBlur = 10;
+  BUFFER_CTX.fillStyle = hero.online ? 'rgb(230,90,100)' : 'rgb(55,40,35)';
+  BUFFER_CTX.shadowColor = BUFFER_CTX.fillStyle;
   BUFFER_CTX.translate(Math.round(x), Math.round(y));
   BUFFER_CTX.rotate(angle/180*Math.PI)
   BUFFER_CTX.fillRect(-5, -5, 10, 10);
   BUFFER_CTX.fillRect(-2, -12, 4, 12);
   BUFFER_CTX.fill()
+  BUFFER_CTX.closePath();
+  BUFFER_CTX.restore();
+};
+
+function renderEnemyRadar(entity) {
+  const { visibleX : x, visibleY : y } = entity;
+  BUFFER_CTX.save();
+  BUFFER_CTX.beginPath();
+  BUFFER_CTX.shadowBlur = 10;
+  BUFFER_CTX.translate(Math.round(x), Math.round(y));
+  // radar
+  BUFFER_CTX.strokeStyle = 'rgb(55,40,35)';
+  BUFFER_CTX.shadowColor = BUFFER_CTX.strokeStyle;
+  BUFFER_CTX.beginPath();
+  BUFFER_CTX.arc(0, 0, 80, 0, Math.PI+Math.PI);
+  BUFFER_CTX.stroke();
   BUFFER_CTX.closePath();
   BUFFER_CTX.restore();
 };
@@ -389,6 +459,7 @@ onload = async (e) => {
   _document.title = 'Subwar 2051';
 
   onresize();
+  initTileset();
 
   charset = await loadImg(charset);
   toggleLoop(true);

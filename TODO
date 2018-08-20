@@ -1,7 +1,9 @@
 
 gameplay
 ========
+- offline mode with Service Worker
 - canvas size = window size but preserve aspect ratio
+- player should also have visibleX/Y (1. can translate context in renderEntity, 2. enemi AI will need it)
 - some way to kill entities
 - collisions in online mode should be fatal to all parties
 - collisions in offline mode could be fatal to all parties, or proximity alert could reveal positions of both parties temporarily
