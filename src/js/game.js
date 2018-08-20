@@ -19,8 +19,8 @@ let entities;
 // RENDER VARIABLES
 
 const CTX = c.getContext('2d');         // visible canvas
-const WIDTH = 320;
-const HEIGHT = 240;
+const WIDTH = 640;
+const HEIGHT = 480;
 const BUFFER = c.cloneNode();           // visible portion of map
 const BUFFER_CTX = BUFFER.getContext('2d');
 
@@ -399,7 +399,8 @@ onresize = _window.onrotate = function() {
   BUFFER.height = HEIGHT;
 
   // scale canvas to fit screen while maintaining aspect ratio
-  const scaleToFit = Math.min(innerWidth / WIDTH, innerHeight / HEIGHT);
+  // const scaleToFit = Math.min(innerWidth / WIDTH, innerHeight / HEIGHT);
+  const scaleToFit = 1;
   c.width = WIDTH * scaleToFit;
   c.height = HEIGHT * scaleToFit;
   // disable smoothing on image scaling
