@@ -236,17 +236,17 @@ function update() {
       if (countdown < 0) {
         screen = END_SCREEN;
       }
-      updatePosition(hero);
-      constrainToViewport(hero);
-      entities.slice(1).forEach((entity) => {
-        updateDirection(entity);
+      entities.forEach((entity) => {
         updatePosition(entity);
-        const test = testAABBCollision(hero, entity);
-        if (test.collide) {
-          correctAABBCollision(hero, entity, test);
+        if (entity !== hero) {
+          const test = testAABBCollision(hero, entity);
+          if (test.collide) {
+            correctAABBCollision(hero, entity, test);
+          }
+          updateDirection(entity);
         }
-        updateVisiblePosition(entity, hero.online && entity.online);
         constrainToViewport(entity);
+        updateVisiblePosition(entity, hero.online && entity.online);
       });
 
       break;
@@ -321,44 +321,67 @@ function renderGrid() {
 };
 
 function renderEntity(entity) {
+  BUFFER_CTX.save();
+
+  const { visibleX: x, visibleY: y, visibleAngle: angle } = entity;
+  BUFFER_CTX.translate(Math.round(x), Math.round(y));
+  BUFFER_CTX.rotate(angle /180 * Math.PI);
+
   if (entity.type === 'player') {
-    renderPlayerSub(entity);
+    renderPlayerSub();
   } else {
     renderEnemySub(entity);
   }
+
+  BUFFER_CTX.restore();
 };
 
-function renderRadar(entity) {
-  if (entity.type === 'player') {
-    renderPlayerRadar(entity);
-  } else {
-    renderEnemyRadar(entity);
-  }
-};
-
-
-function renderPlayerSub(entity) {
-  const { x, y, angle } = entity;
-  BUFFER_CTX.save();
+function renderPlayerSub() {
   BUFFER_CTX.shadowBlur = 10;
-  BUFFER_CTX.translate(Math.round(x), Math.round(y));
   BUFFER_CTX.fillStyle = 'rgb(75,190,250)';
   BUFFER_CTX.shadowColor = BUFFER_CTX.fillStyle;
-  BUFFER_CTX.rotate(angle /180 * Math.PI)
   BUFFER_CTX.beginPath();
   BUFFER_CTX.arc(0, 0, 5, 0, Math.PI+Math.PI);
   BUFFER_CTX.fillRect(-2, -12, 4, 12);
   BUFFER_CTX.fill()
   BUFFER_CTX.closePath();
+};
+
+function renderEnemySub() {
+  BUFFER_CTX.beginPath();
+  BUFFER_CTX.shadowBlur = 10;
+  BUFFER_CTX.fillStyle = hero.online ? 'rgb(230,90,100)' : 'rgb(55,40,35)';
+  BUFFER_CTX.shadowColor = BUFFER_CTX.fillStyle;
+  BUFFER_CTX.fillRect(-5, -5, 10, 10);
+  BUFFER_CTX.fillRect(-2, -12, 4, 12);
+  BUFFER_CTX.fill()
+  BUFFER_CTX.closePath();
+};
+
+function renderRadar(entity) {
+  BUFFER_CTX.save();
+
+  const { visibleX: x, visibleY: y, dashOffset = 0, dashTime = 0 } = entity;
+  BUFFER_CTX.translate(Math.round(x), Math.round(y));
+
+  if (entity.type === 'player') {
+    renderPlayerRadar(dashOffset);
+    // TODO should be done in update()
+    entity.dashTime = dashTime + elapsedTime;
+    if (entity.dashTime > 0.1) {
+      entity.dashTime -= 0.1;
+      entity.dashOffset = (dashOffset-1) % 12;  // next line dash: 4, 8, 12 <- offset
+    }
+  } else {
+    renderEnemyRadar();
+  }
+
   BUFFER_CTX.restore();
 };
 
-function renderPlayerRadar(entity) {
-  const { x, y, angle, dashOffset = 0, dashTime = 0 } = entity;
-  BUFFER_CTX.save();
-  BUFFER_CTX.shadowBlur = 10;
-  BUFFER_CTX.translate(Math.round(x), Math.round(y));
+function renderPlayerRadar(dashOffset) {
   // radar
+  BUFFER_CTX.shadowBlur = 10;
   BUFFER_CTX.strokeStyle = 'rgb(70,105,105)';
   BUFFER_CTX.shadowColor = BUFFER_CTX.strokeStyle;
   BUFFER_CTX.beginPath();
@@ -372,45 +395,17 @@ function renderPlayerRadar(entity) {
   BUFFER_CTX.arc(0, 0, 40, 0, Math.PI+Math.PI);
   BUFFER_CTX.stroke();
   BUFFER_CTX.closePath();
-  BUFFER_CTX.restore();
-  entity.dashTime = dashTime + elapsedTime;
-  if (entity.dashTime > 0.1) {
-    entity.dashTime -= 0.1;
-    entity.dashOffset = (dashOffset-1) % 12;  // next line dash: 4, 8, 12 <- offset
-  }
 };
 
-function renderEnemySub(entity) {
-  const { visibleX : x, visibleY : y, visibleAngle : angle } = entity;
-  BUFFER_CTX.save();
-  BUFFER_CTX.beginPath();
-  // sub
-  BUFFER_CTX.shadowBlur = 10;
-  BUFFER_CTX.fillStyle = hero.online ? 'rgb(230,90,100)' : 'rgb(55,40,35)';
-  BUFFER_CTX.shadowColor = BUFFER_CTX.fillStyle;
-  BUFFER_CTX.translate(Math.round(x), Math.round(y));
-  BUFFER_CTX.rotate(angle/180*Math.PI)
-  BUFFER_CTX.fillRect(-5, -5, 10, 10);
-  BUFFER_CTX.fillRect(-2, -12, 4, 12);
-  BUFFER_CTX.fill()
-  BUFFER_CTX.closePath();
-  BUFFER_CTX.restore();
-};
-
-function renderEnemyRadar(entity) {
-  const { visibleX : x, visibleY : y } = entity;
-  BUFFER_CTX.save();
-  BUFFER_CTX.beginPath();
-  BUFFER_CTX.shadowBlur = 10;
-  BUFFER_CTX.translate(Math.round(x), Math.round(y));
+function renderEnemyRadar() {
   // radar
+  BUFFER_CTX.shadowBlur = 10;
   BUFFER_CTX.strokeStyle = 'rgb(55,40,35)';
   BUFFER_CTX.shadowColor = BUFFER_CTX.strokeStyle;
   BUFFER_CTX.beginPath();
   BUFFER_CTX.arc(0, 0, 80, 0, Math.PI+Math.PI);
   BUFFER_CTX.stroke();
   BUFFER_CTX.closePath();
-  BUFFER_CTX.restore();
 };
 
 function renderText(msg, x, y, align = ALIGN_LEFT, scale = 1) {
