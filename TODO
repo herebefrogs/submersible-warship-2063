@@ -3,8 +3,8 @@ gameplay
 ========
 - offline mode with Service Worker
 - some way to kill entities
-- collisions in online mode should be fatal to all parties
-- collisions in offline mode could be fatal to all parties, or proximity alert could reveal positions of both parties temporarily
+- add spinning debris with ttl
+- proximity alert could reveal positions of both parties temporarily
 - firing in offline mode should reveal position temporarily
 - some AI for enemies (attach player, evade torpedoes)
 - some levels/missions

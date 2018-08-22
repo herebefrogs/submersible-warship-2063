@@ -29,18 +29,9 @@ const ALPHABET = 'abcdefghijklmnopqrstuvwxyz0123456789.:!-%,/';
 const ALIGN_LEFT = 0;
 const ALIGN_CENTER = 1;
 const ALIGN_RIGHT = 2;
-const ATLAS = {
-  player: {
-    w: 10,
-    h: 10,
-  },
-  'sub1': {
-    w: 10,
-    h: 10,
-  },
-};
+
 const CHARSET_SIZE = 8; // in px
-const FRAME_DURATION = 0.1; // duration of 1 animation frame, in seconds
+const DASH_FRAME_DURATION = 0.1; // duration of 1 animation frame, in seconds
 let charset = '';   // alphabet sprite, filled in by build script, overwritten at runtime
 
 // LOOP VARIABLES
@@ -67,117 +58,31 @@ function startGame() {
   screen = GAME_SCREEN;
 };
 
-function testAABBCollision(entity1, entity2) {
-  const test = {
-    entity1MaxX: entity1.x + entity1.w,
-    entity1MaxY: entity1.y + entity1.h,
-    entity2MaxX: entity2.x + entity2.w,
-    entity2MaxY: entity2.y + entity2.h,
-  };
-
-  test.collide = entity1.x < test.entity2MaxX
-    && test.entity1MaxX > entity2.x
-    && entity1.y < test.entity2MaxY
-    && test.entity1MaxY > entity2.y;
-
-  return test;
-};
-
-// entity1 collided into entity2
-function correctAABBCollision(entity1, entity2, test) {
-  const { entity1MaxX, entity1MaxY, entity2MaxX, entity2MaxY } = test;
-
-  const deltaMaxX = entity1MaxX - entity2.x;
-  const deltaMaxY = entity1MaxY - entity2.y;
-  const deltaMinX = entity2MaxX - entity1.x;
-  const deltaMinY = entity2MaxY - entity1.y;
-
-  // AABB collision response (homegrown wall sliding, not physically correct
-  // because just pushing along one axis by the distance overlapped)
-
-  // entity1 moving down/right
-  if (entity1.moveX > 0 && entity1.moveY > 0) {
-    if (deltaMaxX < deltaMaxY) {
-      // collided right side first
-      entity1.x -= deltaMaxX;
-    } else {
-      // collided top side first
-      entity1.y -= deltaMaxY;
-    }
-  }
-  // entity1 moving up/right
-  else if (entity1.moveX > 0 && entity1.moveY < 0) {
-    if (deltaMaxX < deltaMinY) {
-      // collided right side first
-      entity1.x -= deltaMaxX;
-    } else {
-      // collided bottom side first
-      entity1.y += deltaMinY;
-    }
-  }
-  // entity1 moving right
-  else if (entity1.moveX > 0) {
-    entity1.x -= deltaMaxX;
-  }
-  // entity1 moving down/left
-  else if (entity1.moveX < 0 && entity1.moveY > 0) {
-    if (deltaMinX < deltaMaxY) {
-      // collided left side first
-      entity1.x += deltaMinX;
-    } else {
-      // collided top side first
-      entity1.y -= deltaMaxY;
-    }
-  }
-  // entity1 moving up/left
-  else if (entity1.moveX < 0 && entity1.moveY < 0) {
-    if (deltaMinX < deltaMinY) {
-      // collided left side first
-      entity1.x += deltaMinX;
-    } else {
-      // collided bottom side first
-      entity1.y += deltaMinY;
-    }
-  }
-  // entity1 moving left
-  else if (entity1.moveX < 0) {
-    entity1.x += deltaMinX;
-  }
-  // entity1 moving down
-  else if (entity1.moveY > 0) {
-    entity1.y -= deltaMaxY;
-  }
-  // entity1 moving up
-  else if (entity1.moveY < 0) {
-    entity1.y += deltaMinY;
-  }
+function testCircleCollision(entity1, entity2) {
+  return Math.pow(entity1.radius + entity2.radius, 2) > Math.pow(entity1.x - entity2.x, 2) + Math.pow(entity1.y - entity2.y, 2);
 };
 
 function constrainToViewport(entity) {
   if (entity.x < 0) {
     entity.x = 0;
-  } else if (entity.x > BUFFER.width - entity.w) {
-    entity.x = BUFFER.width - entity.w;
+  } else if (entity.x > BUFFER.width - entity.radius) {
+    entity.x = BUFFER.width - entity.radius;
   }
   if (entity.y < 0) {
     entity.y = 0;
-  } else if (entity.y > BUFFER.height - entity.h) {
-    entity.y = BUFFER.height - entity.h;
+  } else if (entity.y > BUFFER.height - entity.radius) {
+    entity.y = BUFFER.height - entity.radius;
   }
 };
 
-function createEntity(type, x = 0, y = 0, speed = 20) {
-  const { w, h } = ATLAS[type];
+function createEntity(type, x = 0, y = 0, speed = 20, radius = 6) {
   return {
-    h,
-    lastX: x,
-    lastY: y,
     moveX: 0,
     moveY: 0,
     online: true,
+    radius,
     speed,
     type,
-    w,
     x,
     y,
   };
@@ -188,15 +93,6 @@ function updateVisiblePosition(entity, shouldUpdate) {
     entity.visibleX = entity.x;
     entity.visibleY = entity.y;
     entity.visibleAngle = entity.angle;
-  }
-};
-
-function updateAnimation(entity) {
-  entity.frameTime += elapsedTime;
-  if (entity.frameTime > FRAME_DURATION) {
-    entity.frameTime -= FRAME_DURATION;
-    entity.frame += 1;
-    entity.frame %= ATLAS[entity.type][entity.action].length;
   }
 };
 
@@ -228,25 +124,33 @@ function updateDirection(entity) {
   entity.lastDirection = lastDirection;
 };
 
+function killEntity(entity) {
+  // mark entity for removal at end of update() loop
+  entity.dead = true;
+  // TODO add debris in place of entity
+};
+
 function update() {
   switch (screen) {
     case GAME_SCREEN:
       countdown -= elapsedTime;
-      if (countdown < 0) {
+      if (countdown < 0 || hero.dead) {
         screen = END_SCREEN;
       }
       entities.forEach((entity) => {
         updatePosition(entity);
         if (entity !== hero) {
-          const test = testAABBCollision(hero, entity);
-          if (test.collide) {
-            correctAABBCollision(hero, entity, test);
+          if (testCircleCollision(hero, entity)) {
+            killEntity(hero);
+            killEntity(entity);
           }
           updateDirection(entity);
         }
         constrainToViewport(entity);
         updateVisiblePosition(entity, hero.online && entity.online);
       });
+      // remove dead entities
+      entities = entities.filter(entity => !entity.dead);
 
       break;
   }
@@ -294,6 +198,7 @@ function render() {
 
 function initTileset() {
   TILESET.width = TILESET.height = 64;
+  // cross for tactical grid
   TILESET_CTX.strokeStyle = 'rgb(40,55,50)';
   TILESET_CTX.beginPath();
   TILESET_CTX.moveTo(0, 4);
@@ -328,8 +233,10 @@ function renderEntity(entity) {
 
   if (entity.type === 'player') {
     renderPlayerSub();
-  } else {
+  } else if (entity.type === 'sub1') {
     renderEnemySub(entity);
+  } else if (entity.type === 'debris') {
+    renderDebris(entity);
   }
 
   BUFFER_CTX.restore();
@@ -367,8 +274,8 @@ function renderRadar(entity) {
     renderPlayerRadar(dashOffset);
     // TODO should be done in update()
     entity.dashTime = dashTime + elapsedTime;
-    if (entity.dashTime > 0.1) {
-      entity.dashTime -= 0.1;
+    if (entity.dashTime > DASH_FRAME_DURATION) {
+      entity.dashTime -= DASH_FRAME_DURATION;
       entity.dashOffset = (dashOffset-1) % 12;  // next line dash: 4, 8, 12 <- offset
     }
   } else {
