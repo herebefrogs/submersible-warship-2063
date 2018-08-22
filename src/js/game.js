@@ -18,9 +18,8 @@ let entities;
 
 // RENDER VARIABLES
 
+const RATIO = 1.6; // 16:10
 const CTX = c.getContext('2d');         // visible canvas
-const WIDTH = 640;
-const HEIGHT = 480;
 const BUFFER = c.cloneNode();           // visible portion of map
 const BUFFER_CTX = BUFFER.getContext('2d');
 const TILESET = c.cloneNode();
@@ -57,13 +56,13 @@ let running = true;
 function startGame() {
   konamiIndex = 0;
   countdown = 60;
-  hero = createEntity('player', WIDTH / 2, HEIGHT / 2, 30);
+  hero = createEntity('player', BUFFER.width / 2, BUFFER.height / 2, 30);
   entities = [
     hero,
     createEntity('sub1', 100, 100),
-    createEntity('sub1', 100, HEIGHT - 100),
-    createEntity('sub1', WIDTH - 100, 100),
-    createEntity('sub1', WIDTH - 100, HEIGHT - 100),
+    createEntity('sub1', 100, BUFFER.height - 100),
+    createEntity('sub1', BUFFER.width - 100, 100),
+    createEntity('sub1', BUFFER.width - 100, BUFFER.height - 100),
   ];
   screen = GAME_SCREEN;
 };
@@ -157,13 +156,13 @@ function correctAABBCollision(entity1, entity2, test) {
 function constrainToViewport(entity) {
   if (entity.x < 0) {
     entity.x = 0;
-  } else if (entity.x > WIDTH - entity.w) {
-    entity.x = WIDTH - entity.w;
+  } else if (entity.x > BUFFER.width - entity.w) {
+    entity.x = BUFFER.width - entity.w;
   }
   if (entity.y < 0) {
     entity.y = 0;
-  } else if (entity.y > HEIGHT - entity.h) {
-    entity.y = HEIGHT - entity.h;
+  } else if (entity.y > BUFFER.height - entity.h) {
+    entity.y = BUFFER.height - entity.h;
   }
 };
 
@@ -259,21 +258,21 @@ function blit() {
   // copy backbuffer onto visible canvas, scaling it to screen dimensions
   CTX.drawImage(
     BUFFER,
-    0, 0, WIDTH, HEIGHT,
+    0, 0, BUFFER.width, BUFFER.height,
     0, 0, c.width, c.height
   );
 };
 
 function render() {
   BUFFER_CTX.fillStyle = 'rgb(20,35,40)';
-  BUFFER_CTX.fillRect(0, 0, WIDTH, HEIGHT);
+  BUFFER_CTX.fillRect(0, 0, BUFFER.width, BUFFER.height);
 
   switch (screen) {
     case TITLE_SCREEN:
       renderText('subwar 2051', CHARSET_SIZE, CHARSET_SIZE);
-      renderText('press any key', WIDTH / 2, HEIGHT / 2, ALIGN_CENTER);
+      renderText('press any key', BUFFER.width / 2, BUFFER.height / 2, ALIGN_CENTER);
       if (konamiIndex === konamiCode.length) {
-        renderText('konami mode on', WIDTH - CHARSET_SIZE, CHARSET_SIZE, ALIGN_RIGHT);
+        renderText('konami mode on', BUFFER.width - CHARSET_SIZE, CHARSET_SIZE, ALIGN_RIGHT);
       }
       break;
     case GAME_SCREEN:
@@ -311,13 +310,13 @@ function initTileset() {
 function renderCountdown() {
   const minutes = Math.floor(Math.ceil(countdown) / 60);
   const seconds = Math.ceil(countdown) - minutes * 60;
-  renderText(`${minutes}:${seconds <= 9 ? '0' : ''}${seconds}`, WIDTH - CHARSET_SIZE, CHARSET_SIZE, ALIGN_RIGHT);
+  renderText(`${minutes}:${seconds <= 9 ? '0' : ''}${seconds}`, BUFFER.width - CHARSET_SIZE, CHARSET_SIZE, ALIGN_RIGHT);
 
 };
 
 function renderGrid() {
   BUFFER_CTX.fillStyle = BUFFER_CTX.createPattern(TILESET, 'repeat');
-  BUFFER_CTX.fillRect(0, 0, WIDTH, HEIGHT);
+  BUFFER_CTX.fillRect(0, 0, BUFFER.width, BUFFER.height);
 };
 
 function renderEntity(entity) {
@@ -461,14 +460,10 @@ onload = async (e) => {
 };
 
 onresize = _window.onrotate = function() {
-  BUFFER.width = WIDTH;
-  BUFFER.height = HEIGHT;
+  // fit canvas in screen while maintaining aspect ratio
+  c.width = BUFFER.width = innerWidth > innerHeight * RATIO ? innerHeight * RATIO : innerWidth;
+  c.height = BUFFER.height = innerWidth > innerHeight * RATIO ? innerHeight : innerWidth / RATIO;
 
-  // scale canvas to fit screen while maintaining aspect ratio
-  // const scaleToFit = Math.min(innerWidth / WIDTH, innerHeight / HEIGHT);
-  const scaleToFit = 1;
-  c.width = WIDTH * scaleToFit;
-  c.height = HEIGHT * scaleToFit;
   // disable smoothing on image scaling
   CTX.imageSmoothingEnabled = BUFFER_CTX.imageSmoothingEnabled = false;
 };
@@ -679,21 +674,21 @@ function setTouchPosition([x, y]) {
 };
 
 function addDebugTouch(x, y) {
-  touches.push([x / innerWidth * WIDTH, y / innerHeight * HEIGHT]);
+  touches.push([x / innerWidth * BUFFER.width, y / innerHeight * BUFFER.height]);
   if (touches.length > 10) {
     touches = touches.slice(touches.length - 10);
   }
 };
 
 function renderDebugTouch() {
-  let x = maxX / innerWidth * WIDTH;
-  let y = maxY / innerHeight * HEIGHT;
-  renderDebugTouchBound(x, x, 0, HEIGHT, '#f00');
-  renderDebugTouchBound(0, WIDTH, y, y, '#f00');
-  x = minX / innerWidth * WIDTH;
-  y = minY / innerHeight * HEIGHT;
-  renderDebugTouchBound(x, x, 0, HEIGHT, '#ff0');
-  renderDebugTouchBound(0, WIDTH, y, y, '#ff0');
+  let x = maxX / innerWidth * BUFFER.width;
+  let y = maxY / innerHeight * BUFFER.height;
+  renderDebugTouchBound(x, x, 0, BUFFER.height, '#f00');
+  renderDebugTouchBound(0, BUFFER.width, y, y, '#f00');
+  x = minX / innerWidth * BUFFER.width;
+  y = minY / innerHeight * BUFFER.height;
+  renderDebugTouchBound(x, x, 0, BUFFER.height, '#ff0');
+  renderDebugTouchBound(0, BUFFER.width, y, y, '#ff0');
 
   if (touches.length) {
     BUFFER_CTX.strokeStyle = BUFFER_CTX.fillStyle =   '#02d';
