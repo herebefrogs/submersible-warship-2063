@@ -570,7 +570,7 @@ let minX = 0;
 let minY = 0;
 let maxX = 0;
 let maxY = 0;
-let MIN_DISTANCE = 30; // in px
+let MIN_DISTANCE = 44; // in px
 let touches = [];
 
 // adding onmousedown/move/up triggers a MouseEvent and a PointerEvent
