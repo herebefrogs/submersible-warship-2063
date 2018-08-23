@@ -16,6 +16,10 @@ let countdown; // in seconds
 let hero;
 let entities;
 
+function Input() {
+  this.left = this.right = this.up = this.down = 0;
+}
+
 // RENDER VARIABLES
 
 const RATIO = 1.6; // 16:10
@@ -48,6 +52,7 @@ function startGame() {
   konamiIndex = 0;
   countdown = 60;
   hero = createEntity('player', BUFFER.width / 2, BUFFER.height / 2, 30);
+  hero.input = new Input();
   entities = [
     hero,
     createEntity('sub1', 100, 100),
@@ -130,6 +135,14 @@ function killEntity(entity) {
   // TODO add debris in place of entity
 };
 
+function applyInputToVelocity(entity) {
+  const { input } = entity;
+  if (input) {
+    entity.moveX = input.left + input.right;
+    entity.moveY = input.up + input.down;
+  }
+}
+
 function update() {
   switch (screen) {
     case GAME_SCREEN:
@@ -138,6 +151,7 @@ function update() {
         screen = END_SCREEN;
       }
       entities.forEach((entity) => {
+        applyInputToVelocity(entity);
         updatePosition(entity);
         if (entity !== hero) {
           if (testCircleCollision(hero, entity)) {
@@ -404,19 +418,19 @@ onkeydown = function(e) {
         switch (e.code) {
           case 'ArrowLeft':
           case 'KeyA':
-            hero.moveX = -1;
+            hero.input.left = -1;
             break;
           case 'ArrowUp':
           case 'KeyW':
-            hero.moveY = -1;
+            hero.input.up = -1;
             break;
           case 'ArrowRight':
           case 'KeyD':
-            hero.moveX = 1;
+            hero.input.right = 1;
             break;
           case 'ArrowDown':
           case 'KeyS':
-            hero.moveY = 1;
+            hero.input.down = 1;
             break;
           case 'KeyP':
             // Pause game as soon as key is pressed
@@ -441,15 +455,19 @@ onkeyup = function(e) {
       switch (e.code) {
         case 'ArrowLeft':
         case 'KeyA':
+          hero.input.left = 0;
+          break;
         case 'ArrowRight':
         case 'KeyD':
-          hero.moveX = 0;
+          hero.input.right = 0;
           break;
         case 'ArrowUp':
         case 'KeyW':
+          hero.input.up = 0;
+          break;
         case 'ArrowDown':
         case 'KeyS':
-          hero.moveY = 0;
+          hero.input.down = 0;
           break;
         case 'KeyO': // when playing with arrows
         case 'KeyF': // when playing with WASD
@@ -510,7 +528,7 @@ _window.ontouchend = _window.onpointerup = function(e) {
       break;
     case GAME_SCREEN:
       // stop hero
-      hero.moveX = hero.moveY = 0;
+      hero.input.left = hero.input.right = hero.input.up = hero.input.down = 0;
       // end touch
       minX = minY = maxX = maxY = 0;
       break;
@@ -530,50 +548,50 @@ function setTouchPosition([x, y]) {
   if (x > maxX) {
     maxX = x;
     if (maxX - minX > MIN_DISTANCE) {
-      hero.moveX = 1;
+      hero.input.right = 1;
     }
   }
   // touch moving further left
   else if (x < minX) {
     minX = x;
     if (maxX - minX > MIN_DISTANCE) {
-      hero.moveX = -1;
+      hero.input.left = -1;
     }
   }
   // touch reversing left while hero moving right
-  else if (x < maxX && hero.moveX > 0) {
+  else if (x < maxX && hero.input.right) {
     minX = x;
-    hero.moveX = 0;
+    hero.input.right = 0;
   }
   // touch reversing right while hero moving left
-  else if (minX < x && hero.moveX < 0) {
+  else if (minX < x && hero.input.left) {
     maxX = x;
-    hero.moveX = 0;
+    hero.input.left = 0;
   }
 
   // touch moving further down
   if (y > maxY) {
     maxY = y;
     if (maxY - minY > MIN_DISTANCE) {
-      hero.moveY = 1;
+      hero.input.down = 1;
     }
   }
   // touch moving further up
   else if (y < minY) {
     minY = y;
     if (maxY - minY > MIN_DISTANCE) {
-      hero.moveY = -1;
+      hero.input.up = -1;
     }
   }
   // touch reversing up while hero moving down
-  else if (y < maxY && hero.moveY > 0) {
+  else if (y < maxY && hero.input.down) {
     minY = y;
-    hero.moveY = 0;
+    hero.input.down = 0;
   }
   // touch reversing down while hero moving up
-  else if (minY < y && hero.moveY < 0) {
+  else if (minY < y && hero.input.up) {
     maxY = y;
-    hero.moveY = 0;
+    hero.input.up = 0;
   }
 
   // uncomment to debug mobile input handlers
