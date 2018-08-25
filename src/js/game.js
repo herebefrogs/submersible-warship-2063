@@ -20,6 +20,15 @@ function Input() {
   this.left = this.right = this.up = this.down = 0;
 }
 
+function ArtificialInput(time) {
+  this.nextChange = this.remaining = time;
+}
+
+function Velocity(speed) {
+  this.dx = this.dy = this.dr = 0;
+  this.speed = speed;
+}
+
 // RENDER VARIABLES
 
 const RATIO = 1.6; // 16:10
@@ -51,14 +60,16 @@ let running = true;
 function startGame() {
   konamiIndex = 0;
   countdown = 60;
-  hero = createEntity('player', BUFFER.width / 2, BUFFER.height / 2, 30);
-  hero.input = new Input();
+  hero = createEntity('player', BUFFER.width / 2, BUFFER.height / 2, {
+    input: new Input(),
+    velocity: new Velocity(40),
+  });
   entities = [
     hero,
-    createEntity('sub1', 100, 100),
-    createEntity('sub1', 100, BUFFER.height - 100),
-    createEntity('sub1', BUFFER.width - 100, 100),
-    createEntity('sub1', BUFFER.width - 100, BUFFER.height - 100),
+    createEntity('sub1', 100, 100, { velocity: new Velocity(20), artificialInput: new ArtificialInput(5) }),
+    createEntity('sub1', 100, BUFFER.height - 100, { velocity: new Velocity(20), artificialInput: new ArtificialInput(10) }),
+    createEntity('sub1', BUFFER.width - 100, 100, { velocity: new Velocity(20), artificialInput: new ArtificialInput(2.5) }),
+    createEntity('sub1', BUFFER.width - 100, BUFFER.height - 100, { velocity: new Velocity(20), artificialInput: new ArtificialInput(7.5) }),
   ];
   screen = GAME_SCREEN;
 };
@@ -80,13 +91,13 @@ function constrainToViewport(entity) {
   }
 };
 
-function createEntity(type, x = 0, y = 0, speed = 20, radius = 6) {
+function createEntity(type, x = 0, y = 0, { artificialInput, input, velocity }) {
   return {
-    moveX: 0,
-    moveY: 0,
+    artificialInput,
+    input,
+    velocity,
     online: true,
-    radius,
-    speed,
+    radius: 6,
     type,
     x,
     y,
@@ -101,47 +112,64 @@ function updateVisiblePosition(entity, shouldUpdate) {
   }
 };
 
-function updatePosition(entity) {
-  const distance = entity.speed * elapsedTime;
-  entity.x += distance * entity.moveX;
-  entity.y += distance * entity.moveY;
-
-  // TODO there is got to be a way to make this formula more sensible
-  entity.angle =
-    entity.moveX < 0 && entity.moveY < 0 ? -45 :
-    entity.moveX < 0 && entity.moveY === 0 ? -90 :
-    entity.moveX < 0 && entity.moveY > 0 ? -135 :
-    entity.moveX === 0 && entity.moveY < 0 ? 0 :
-    entity.moveX > 0 && entity.moveY < 0 ? 45 :
-    entity.moveX > 0 && entity.moveY === 0 ? 90 :
-    entity.moveX > 0 && entity.moveY > 0 ? 135 :
-    entity.moveX === 0 && entity.moveY > 0 ? 180 : 0;
-
-};
-
-function updateDirection(entity) {
-  let { lastDirection = 0 } = entity;
-  lastDirection += elapsedTime;
-  if (Math.random() < lastDirection / 10) {
-    entity[`move${Math.random() < 0.5 ? 'X' : 'Y'}`] = choice([-1, 0, 1]);
-    lastDirection = 0;
-  }
-  entity.lastDirection = lastDirection;
-};
-
 function killEntity(entity) {
   // mark entity for removal at end of update() loop
   entity.dead = true;
   // TODO add debris in place of entity
 };
 
-function applyInputToVelocity(entity) {
-  const { input } = entity;
+// if both dx & dy = 1, then diagonal vector should have length 1
+// therefore 1^2 = r^2 + r^2
+// therefore r = sqrt(1 / 2);
+const DIAGONAL_VELOCITY = Math.sqrt(1 / 2);
+
+function applyInputToVelocity({ input, velocity }) {
   if (input) {
-    entity.moveX = input.left + input.right;
-    entity.moveY = input.up + input.down;
+    velocity.dx = input.left + input.right;
+    velocity.dy = input.up + input.down;
+
+    if (velocity.dx && velocity.dy) {
+      velocity.dx *= DIAGONAL_VELOCITY;
+      velocity.dy *= DIAGONAL_VELOCITY;
+    }
   }
-}
+};
+
+function applyArtificialInputToVelocity({ artificialInput, velocity }) {
+  if (artificialInput) {
+    artificialInput.remaining -= elapsedTime;
+    if (artificialInput.remaining < 0) {
+      artificialInput.remaining += artificialInput.nextChange;
+
+      velocity.dx = choice([-1, 0, 1]);
+      velocity.dy = choice([-1, 0, 1]);
+      if (velocity.dx && velocity.dy) {
+        velocity.dx *= DIAGONAL_VELOCITY;
+        velocity.dy *= DIAGONAL_VELOCITY;
+      }
+    }
+  }
+};
+
+function applyVelocityToPosition(entity) {
+  const { velocity } = entity;
+  const distance = velocity.speed * elapsedTime;
+  entity.x += distance * velocity.dx;
+  entity.y += distance * velocity.dy;
+
+  // TODO there is got to be a way to make this formula more sensible
+  entity.angle =
+    velocity.dx < 0 && velocity.dy < 0 ? -45 :
+    velocity.dx < 0 && velocity.dy === 0 ? -90 :
+    velocity.dx < 0 && velocity.dy > 0 ? -135 :
+    velocity.dx === 0 && velocity.dy < 0 ? 0 :
+    velocity.dx > 0 && velocity.dy < 0 ? 45 :
+    velocity.dx > 0 && velocity.dy === 0 ? 90 :
+    velocity.dx > 0 && velocity.dy > 0 ? 135 :
+    velocity.dx === 0 && velocity.dy > 0 ? 180 : 0;
+
+};
+
 
 function update() {
   switch (screen) {
@@ -152,13 +180,13 @@ function update() {
       }
       entities.forEach((entity) => {
         applyInputToVelocity(entity);
-        updatePosition(entity);
+        applyArtificialInputToVelocity(entity);
+        applyVelocityToPosition(entity);
         if (entity !== hero) {
           if (testCircleCollision(hero, entity)) {
             killEntity(hero);
             killEntity(entity);
           }
-          updateDirection(entity);
         }
         constrainToViewport(entity);
         updateVisiblePosition(entity, hero.online && entity.online);
