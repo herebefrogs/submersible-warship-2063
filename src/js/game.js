@@ -29,6 +29,12 @@ function Velocity(speed) {
   this.speed = speed;
 }
 
+function Position(x, y) {
+  this.x = x;
+  this.y = y;
+  this.r = 0;
+}
+
 // RENDER VARIABLES
 
 const RATIO = 1.6; // 16:10
@@ -60,55 +66,74 @@ let running = true;
 function startGame() {
   konamiIndex = 0;
   countdown = 60;
-  hero = createEntity('player', BUFFER.width / 2, BUFFER.height / 2, {
+  hero = createEntity('player', {
     input: new Input(),
+    position: new Position(BUFFER.width / 2, BUFFER.height / 2),
     velocity: new Velocity(40),
   });
   entities = [
     hero,
-    createEntity('sub1', 100, 100, { velocity: new Velocity(20), artificialInput: new ArtificialInput(5) }),
-    createEntity('sub1', 100, BUFFER.height - 100, { velocity: new Velocity(20), artificialInput: new ArtificialInput(10) }),
-    createEntity('sub1', BUFFER.width - 100, 100, { velocity: new Velocity(20), artificialInput: new ArtificialInput(2.5) }),
-    createEntity('sub1', BUFFER.width - 100, BUFFER.height - 100, { velocity: new Velocity(20), artificialInput: new ArtificialInput(7.5) }),
+    createEntity('sub1', {
+      artificialInput: new ArtificialInput(4),
+      position: new Position(100, 100),
+      velocity: new Velocity(20),
+    }),
+    createEntity('sub1', {
+      artificialInput: new ArtificialInput(3),
+      position: new Position(100, BUFFER.height - 100),
+      velocity: new Velocity(20),
+    }),
+    createEntity('sub1', {
+      artificialInput: new ArtificialInput(6),
+      position: new Position(BUFFER.width - 100, 100),
+      velocity: new Velocity(20),
+    }),
+    createEntity('sub1', {
+      artificialInput: new ArtificialInput(5),
+      position: new Position(BUFFER.width - 100, BUFFER.height - 100),
+      velocity: new Velocity(20),
+    }),
   ];
   screen = GAME_SCREEN;
 };
 
 function testCircleCollision(entity1, entity2) {
-  return Math.pow(entity1.radius + entity2.radius, 2) > Math.pow(entity1.x - entity2.x, 2) + Math.pow(entity1.y - entity2.y, 2);
+  return Math.pow(entity1.radius + entity2.radius, 2) > Math.pow(entity1.position.x - entity2.position.x, 2) + Math.pow(entity1.position.y - entity2.position.y, 2);
 };
 
 function constrainToViewport(entity) {
-  if (entity.x < 0) {
-    entity.x = 0;
-  } else if (entity.x > BUFFER.width - entity.radius) {
-    entity.x = BUFFER.width - entity.radius;
+  const { position } = entity;
+  if (position.x < 0) {
+    position.x = 0;
+  } else if (position.x > BUFFER.width - entity.radius) {
+    position.x = BUFFER.width - entity.radius;
   }
-  if (entity.y < 0) {
-    entity.y = 0;
-  } else if (entity.y > BUFFER.height - entity.radius) {
-    entity.y = BUFFER.height - entity.radius;
+  if (position.y < 0) {
+    position.y = 0;
+  } else if (position.y > BUFFER.height - entity.radius) {
+    position.y = BUFFER.height - entity.radius;
   }
 };
 
-function createEntity(type, x = 0, y = 0, { artificialInput, input, velocity }) {
+function createEntity(type, { artificialInput, input, position, velocity }) {
   return {
     artificialInput,
+    echo: { ...position },
     input,
+    position,
     velocity,
     online: true,
     radius: 6,
     type,
-    x,
-    y,
   };
 };
 
-function updateVisiblePosition(entity, shouldUpdate) {
-  if (shouldUpdate) {
-    entity.visibleX = entity.x;
-    entity.visibleY = entity.y;
-    entity.visibleAngle = entity.angle;
+function applyPositionToEcho(entity) {
+  const { position, echo } = entity;
+  if (entity === hero || hero.online && entity.online) {
+    echo.x = position.x;
+    echo.y = position.y;
+    echo.r = position.r;
   }
 };
 
@@ -151,14 +176,13 @@ function applyArtificialInputToVelocity({ artificialInput, velocity }) {
   }
 };
 
-function applyVelocityToPosition(entity) {
-  const { velocity } = entity;
+function applyVelocityToPosition({ velocity, position }) {
   const distance = velocity.speed * elapsedTime;
-  entity.x += distance * velocity.dx;
-  entity.y += distance * velocity.dy;
+  position.x += distance * velocity.dx;
+  position.y += distance * velocity.dy;
 
   // TODO there is got to be a way to make this formula more sensible
-  entity.angle =
+  position.r =
     velocity.dx < 0 && velocity.dy < 0 ? -45 :
     velocity.dx < 0 && velocity.dy === 0 ? -90 :
     velocity.dx < 0 && velocity.dy > 0 ? -135 :
@@ -189,7 +213,7 @@ function update() {
           }
         }
         constrainToViewport(entity);
-        updateVisiblePosition(entity, hero.online && entity.online);
+        applyPositionToEcho(entity);
       });
       // remove dead entities
       entities = entities.filter(entity => !entity.dead);
@@ -269,9 +293,9 @@ function renderGrid() {
 function renderEntity(entity) {
   BUFFER_CTX.save();
 
-  const { visibleX: x, visibleY: y, visibleAngle: angle } = entity;
-  BUFFER_CTX.translate(Math.round(x), Math.round(y));
-  BUFFER_CTX.rotate(angle /180 * Math.PI);
+  const { echo } = entity;
+  BUFFER_CTX.translate(Math.round(echo.x), Math.round(echo.y));
+  BUFFER_CTX.rotate(echo.r / 180 * Math.PI);
 
   if (entity.type === 'player') {
     renderPlayerSub();
@@ -309,8 +333,8 @@ function renderEnemySub() {
 function renderRadar(entity) {
   BUFFER_CTX.save();
 
-  const { visibleX: x, visibleY: y, dashOffset = 0, dashTime = 0 } = entity;
-  BUFFER_CTX.translate(Math.round(x), Math.round(y));
+  const { echo, dashOffset = 0, dashTime = 0 } = entity;
+  BUFFER_CTX.translate(Math.round(echo.x), Math.round(echo.y));
 
   if (entity.type === 'player') {
     renderPlayerRadar(dashOffset);
