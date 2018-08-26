@@ -2,13 +2,17 @@
 gameplay
 ========
 - offline mode with Service Worker
-- some way to kill entities
-- add spinning debris with ttl
-- proximity alert could reveal positions of both parties temporarily
-- firing in offline mode should reveal position temporarily
+- a better way to tell when/where to render entities (aka hero and debris should always be displayed)
+- render debris based on the color of sub / cache entities in tileset
+- torpedoes to kill subs
+- some rock formations (collide, indestructible)
+- always centered on player + lerp (have grid move)
+- add parallax to rock formation to suggest 3D
 - some AI for enemies (attach player, evade torpedoes)
-- some levels/missions
-- some nifty visual effects (sonar scan line, blips, animations...)
+- some levels/missions (kill all, kill vip, protect vip)
+- enemy submarines that also go offline
+- firing in offline mode should reveal position temporarily
+- proximity alert could reveal positions of both parties temporarily
 
 
 release checklist

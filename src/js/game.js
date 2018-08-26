@@ -35,6 +35,15 @@ function Position(x, y) {
   this.r = 0;
 }
 
+function Collision(collide, killable) {
+  this.collide = collide;
+  this.killable = killable;
+}
+
+function Ttl(time) {
+  this.timeLeft = time;
+}
+
 // RENDER VARIABLES
 
 const RATIO = 1.6; // 16:10
@@ -67,29 +76,34 @@ function startGame() {
   konamiIndex = 0;
   countdown = 60;
   hero = createEntity('player', {
+    collision: new Collision(true, true),
     input: new Input(),
-    position: new Position(BUFFER.width / 2, BUFFER.height / 2),
+    position: new Position(200, BUFFER.height - 200),
     velocity: new Velocity(40),
   });
   entities = [
     hero,
     createEntity('sub1', {
       artificialInput: new ArtificialInput(4),
+      collision: new Collision(true, true),
       position: new Position(100, 100),
       velocity: new Velocity(20),
     }),
     createEntity('sub1', {
       artificialInput: new ArtificialInput(3),
+      collision: new Collision(true, true),
       position: new Position(100, BUFFER.height - 100),
       velocity: new Velocity(20),
     }),
     createEntity('sub1', {
       artificialInput: new ArtificialInput(6),
+      collision: new Collision(true, true),
       position: new Position(BUFFER.width - 100, 100),
       velocity: new Velocity(20),
     }),
     createEntity('sub1', {
       artificialInput: new ArtificialInput(5),
+      collision: new Collision(true, true),
       position: new Position(BUFFER.width - 100, BUFFER.height - 100),
       velocity: new Velocity(20),
     }),
@@ -98,7 +112,10 @@ function startGame() {
 };
 
 function testCircleCollision(entity1, entity2) {
-  return Math.pow(entity1.radius + entity2.radius, 2) > Math.pow(entity1.position.x - entity2.position.x, 2) + Math.pow(entity1.position.y - entity2.position.y, 2);
+  const { position: position1, collision: collision1 } = entity1;
+  const { position: position2, collision: collision2 } = entity2;
+  return collision1.collide && collision2.collide &&
+    Math.pow(entity1.radius + entity2.radius, 2) > Math.pow(position1.x - position2.x, 2) + Math.pow(position1.y - position2.y, 2);
 };
 
 function constrainToViewport(entity) {
@@ -115,12 +132,14 @@ function constrainToViewport(entity) {
   }
 };
 
-function createEntity(type, { artificialInput, input, position, velocity }) {
+function createEntity(type, { artificialInput, collision, input, position, ttl, velocity }) {
   return {
     artificialInput,
+    collision,
     echo: { ...position },
     input,
     position,
+    ttl,
     velocity,
     online: true,
     radius: 6,
@@ -137,10 +156,24 @@ function applyPositionToEcho(entity) {
   }
 };
 
-function killEntity(entity) {
-  // mark entity for removal at end of update() loop
-  entity.dead = true;
-  // TODO add debris in place of entity
+function collideEntity(entity) {
+  if (entity.collision.killable) {
+    // mark entity for removal at end of update() loop
+    entity.dead = true;
+
+    // add 3 debris in place of entity
+    const { position: { x, y }, velocity: { dx, dy, speed } } = entity;
+    const collision = new Collision(false, false);
+    [1,2,3].forEach(function(i) {
+      const position = new Position(x, y);
+      const velocity = new Velocity(speed);
+      velocity.dx = dx / 2 + rand(-3, 3) / 10;
+      velocity.dy = dy / 2 + rand(-3, 3) / 10;
+      velocity.dr = rand(1, i+1) * (i%2 ? 1 : -1);
+      const ttl = new Ttl(rand(10, 50) / 10);
+      entities.push(createEntity('debris', { collision, position, ttl, velocity }));
+    }); 
+  }
 };
 
 // if both dx & dy = 1, then diagonal vector should have length 1
@@ -181,25 +214,34 @@ function applyVelocityToPosition({ velocity, position }) {
   position.x += distance * velocity.dx;
   position.y += distance * velocity.dy;
 
-  // TODO there is got to be a way to make this formula more sensible
-  position.r =
-    velocity.dx < 0 && velocity.dy < 0 ? -45 :
-    velocity.dx < 0 && velocity.dy === 0 ? -90 :
-    velocity.dx < 0 && velocity.dy > 0 ? -135 :
-    velocity.dx === 0 && velocity.dy < 0 ? 0 :
-    velocity.dx > 0 && velocity.dy < 0 ? 45 :
-    velocity.dx > 0 && velocity.dy === 0 ? 90 :
-    velocity.dx > 0 && velocity.dy > 0 ? 135 :
-    velocity.dx === 0 && velocity.dy > 0 ? 180 : 0;
-
+  if (velocity.dr) {
+    position.r = (position.r + distance * velocity.dr) % 360;
+  } else {
+    // TODO there is got to be a way to make this formula more sensible
+    position.r =
+      velocity.dx < 0 && velocity.dy < 0 ? -45 :
+      velocity.dx < 0 && velocity.dy === 0 ? -90 :
+      velocity.dx < 0 && velocity.dy > 0 ? -135 :
+      velocity.dx === 0 && velocity.dy < 0 ? 0 :
+      velocity.dx > 0 && velocity.dy < 0 ? 45 :
+      velocity.dx > 0 && velocity.dy === 0 ? 90 :
+      velocity.dx > 0 && velocity.dy > 0 ? 135 :
+      velocity.dx === 0 && velocity.dy > 0 ? 180 : 0; 
+  }
 };
+
+function applyElapsedTimeToTtl({ ttl }) {
+  if (ttl) {
+    ttl.timeLeft -= elapsedTime;
+  }
+}
 
 
 function update() {
   switch (screen) {
     case GAME_SCREEN:
       countdown -= elapsedTime;
-      if (countdown < 0 || hero.dead) {
+      if (countdown < 0) {
         screen = END_SCREEN;
       }
       entities.forEach((entity) => {
@@ -208,15 +250,16 @@ function update() {
         applyVelocityToPosition(entity);
         if (entity !== hero) {
           if (testCircleCollision(hero, entity)) {
-            killEntity(hero);
-            killEntity(entity);
+            collideEntity(hero);
+            collideEntity(entity);
           }
         }
         constrainToViewport(entity);
         applyPositionToEcho(entity);
+        applyElapsedTimeToTtl(entity);
       });
-      // remove dead entities
-      entities = entities.filter(entity => !entity.dead);
+      // remove dead entities or entities with zero/negative time to live
+      entities = entities.filter(({ dead, ttl }) => !dead && (!ttl || ttl.timeLeft > 0));
 
       break;
   }
@@ -315,7 +358,7 @@ function renderPlayerSub() {
   BUFFER_CTX.beginPath();
   BUFFER_CTX.arc(0, 0, 5, 0, Math.PI+Math.PI);
   BUFFER_CTX.fillRect(-2, -12, 4, 12);
-  BUFFER_CTX.fill()
+  BUFFER_CTX.fill();
   BUFFER_CTX.closePath();
 };
 
@@ -326,7 +369,19 @@ function renderEnemySub() {
   BUFFER_CTX.shadowColor = BUFFER_CTX.fillStyle;
   BUFFER_CTX.fillRect(-5, -5, 10, 10);
   BUFFER_CTX.fillRect(-2, -12, 4, 12);
-  BUFFER_CTX.fill()
+  BUFFER_CTX.fill();
+  BUFFER_CTX.closePath();
+};
+
+function renderDebris() {
+  BUFFER_CTX.beginPath();
+  BUFFER_CTX.shadowBlur = 10;
+  BUFFER_CTX.fillStyle = 'rgb(230,90,100)';
+  BUFFER_CTX.shadowColor = BUFFER_CTX.fillStyle;
+  BUFFER_CTX.moveTo(-5, -10);
+  BUFFER_CTX.lineTo(4, 4);
+  BUFFER_CTX.lineTo(-4, 0);
+  BUFFER_CTX.fill();
   BUFFER_CTX.closePath();
 };
 
@@ -344,7 +399,7 @@ function renderRadar(entity) {
       entity.dashTime -= DASH_FRAME_DURATION;
       entity.dashOffset = (dashOffset-1) % 12;  // next line dash: 4, 8, 12 <- offset
     }
-  } else {
+  } else if (entity.type === 'sub1') {
     renderEnemyRadar();
   }
 
