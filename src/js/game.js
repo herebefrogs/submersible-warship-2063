@@ -226,7 +226,7 @@ function applyVelocityToPosition({ velocity, position }) {
       velocity.dx > 0 && velocity.dy < 0 ? 45 :
       velocity.dx > 0 && velocity.dy === 0 ? 90 :
       velocity.dx > 0 && velocity.dy > 0 ? 135 :
-      velocity.dx === 0 && velocity.dy > 0 ? 180 : 0; 
+      velocity.dx === 0 && velocity.dy > 0 ? 180 : position.r;
   }
 };
 
