@@ -73,10 +73,9 @@ let running = true;
 // GAMEPLAY HANDLERS
 
 function startGame() {
-  konamiIndex = 0;
   countdown = 60;
   hero = createEntity('player', {
-    collision: new Collision(true, true),
+    collision: new Collision(true, konamiIndex !== konamiCode.length),
     input: new Input(),
     position: new Position(200, BUFFER.height - 200),
     velocity: new Velocity(40),
@@ -284,6 +283,7 @@ function render() {
     case TITLE_SCREEN:
       renderText('subwar 2051', CHARSET_SIZE, CHARSET_SIZE);
       renderText('press any key', BUFFER.width / 2, BUFFER.height / 2, ALIGN_CENTER);
+      // TODO remove and play konami code sound instead
       if (konamiIndex === konamiCode.length) {
         renderText('konami mode on', BUFFER.width - CHARSET_SIZE, CHARSET_SIZE, ALIGN_RIGHT);
       }
@@ -556,6 +556,7 @@ onkeyup = function(e) {
         startGame();
       } else {
         konamiIndex++;
+        // TODO play konami code sound if sequence complete
       }
       break;
     case GAME_SCREEN:
@@ -589,6 +590,7 @@ onkeyup = function(e) {
           open(`https://twitter.com/intent/tweet?text=viral%20marketing%20message%20https%3A%2F%2Fgoo.gl%2F${'some tiny Google url here'}`, '_blank');
           break;
         default:
+          konamiIndex = 0;
           screen = TITLE_SCREEN;
           break;
       }
@@ -640,6 +642,7 @@ _window.ontouchend = _window.onpointerup = function(e) {
       minX = minY = maxX = maxY = 0;
       break;
     case END_SCREEN:
+      konamiIndex = 0;
       screen = TITLE_SCREEN;
       break;
   }
