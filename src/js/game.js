@@ -44,6 +44,10 @@ function Ttl(time) {
   this.timeLeft = time;
 }
 
+function Render(renderer) {
+  this.renderer = renderer;
+}
+
 // RENDER VARIABLES
 
 const RATIO = 1.6; // 16:10
@@ -79,6 +83,7 @@ function startGame() {
     input: new Input(),
     position: new Position(200, BUFFER.height - 200),
     velocity: new Velocity(40),
+    render: new Render(renderPlayerSub),
   });
   entities = [
     hero,
@@ -87,24 +92,28 @@ function startGame() {
       collision: new Collision(true, true),
       position: new Position(100, 100),
       velocity: new Velocity(20),
+      render: new Render(renderEnemySub),
     }),
     createEntity('sub1', {
       artificialInput: new ArtificialInput(3),
       collision: new Collision(true, true),
       position: new Position(100, BUFFER.height - 100),
       velocity: new Velocity(20),
+      render: new Render(renderEnemySub),
     }),
     createEntity('sub1', {
       artificialInput: new ArtificialInput(6),
       collision: new Collision(true, true),
       position: new Position(BUFFER.width - 100, 100),
       velocity: new Velocity(20),
+      render: new Render(renderEnemySub),
     }),
     createEntity('sub1', {
       artificialInput: new ArtificialInput(5),
       collision: new Collision(true, true),
       position: new Position(BUFFER.width - 100, BUFFER.height - 100),
       velocity: new Velocity(20),
+      render: new Render(renderEnemySub),
     }),
   ];
   screen = GAME_SCREEN;
@@ -131,13 +140,14 @@ function constrainToViewport(entity) {
   }
 };
 
-function createEntity(type, { artificialInput, collision, input, position, ttl, velocity }) {
+function createEntity(type, { artificialInput, collision, input, position, render, ttl, velocity }) {
   return {
     artificialInput,
     collision,
     echo: { ...position },
     input,
     position,
+    render,
     ttl,
     velocity,
     online: true,
@@ -148,7 +158,7 @@ function createEntity(type, { artificialInput, collision, input, position, ttl, 
 
 function applyPositionToEcho(entity) {
   const { position, echo } = entity;
-  if (entity === hero || hero.online && entity.online) {
+  if (entity.type === 'player' || entity.type === 'debris' || hero.online && entity.online) {
     echo.x = position.x;
     echo.y = position.y;
     echo.r = position.r;
@@ -163,6 +173,7 @@ function collideEntity(entity) {
     // add 3 debris in place of entity
     const { position: { x, y }, velocity: { dx, dy, speed } } = entity;
     const collision = new Collision(false, false);
+    const render = new Render(function() { renderDebris(entity === hero ? 'rgb(75,190,250)' : 'rgb(230,90,100)') });
     [1,2,3].forEach(function(i) {
       const position = new Position(x, y);
       const velocity = new Velocity(speed);
@@ -170,7 +181,7 @@ function collideEntity(entity) {
       velocity.dy = dy / 2 + rand(-3, 3) / 10;
       velocity.dr = rand(1, i+1) * (i%2 ? 1 : -1);
       const ttl = new Ttl(rand(10, 50) / 10);
-      entities.push(createEntity('debris', { collision, position, ttl, velocity }));
+      entities.push(createEntity('debris', { collision, position, render, ttl, velocity }));
     }); 
   }
 };
@@ -333,20 +344,13 @@ function renderGrid() {
   BUFFER_CTX.fillRect(0, 0, BUFFER.width, BUFFER.height);
 };
 
-function renderEntity(entity) {
+function renderEntity({ echo, render }) {
   BUFFER_CTX.save();
 
-  const { echo } = entity;
   BUFFER_CTX.translate(Math.round(echo.x), Math.round(echo.y));
   BUFFER_CTX.rotate(echo.r / 180 * Math.PI);
 
-  if (entity.type === 'player') {
-    renderPlayerSub();
-  } else if (entity.type === 'sub1') {
-    renderEnemySub(entity);
-  } else if (entity.type === 'debris') {
-    renderDebris(entity);
-  }
+  render.renderer();
 
   BUFFER_CTX.restore();
 };
@@ -373,14 +377,14 @@ function renderEnemySub() {
   BUFFER_CTX.closePath();
 };
 
-function renderDebris() {
+function renderDebris(color) {
   BUFFER_CTX.beginPath();
   BUFFER_CTX.shadowBlur = 10;
-  BUFFER_CTX.fillStyle = 'rgb(230,90,100)';
+  BUFFER_CTX.fillStyle = color;
   BUFFER_CTX.shadowColor = BUFFER_CTX.fillStyle;
   BUFFER_CTX.moveTo(-5, -10);
-  BUFFER_CTX.lineTo(4, 4);
-  BUFFER_CTX.lineTo(-4, 0);
+  BUFFER_CTX.lineTo(5, 0);
+  BUFFER_CTX.lineTo(-4, -2);
   BUFFER_CTX.fill();
   BUFFER_CTX.closePath();
 };
