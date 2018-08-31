@@ -2,13 +2,11 @@
 gameplay
 ========
 - offline mode with Service Worker
-- a better way to tell when/where to render entities (aka hero and debris should always be displayed)
-- render debris based on the color of sub / cache entities in tileset
-- torpedoes to kill subs
 - some rock formations (collide, indestructible)
 - always centered on player + lerp (have grid move)
 - add parallax to rock formation to suggest 3D
-- some AI for enemies (attach player, evade torpedoes)
+- some AI for enemies (attach player, evade torpedoes, follow a path)
+- somb better torpedoes (straight at first than latch onto a target)
 - some levels/missions (kill all, kill vip, protect vip)
 - enemy submarines that also go offline
 - firing in offline mode should reveal position temporarily

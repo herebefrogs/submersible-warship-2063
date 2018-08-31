@@ -159,6 +159,60 @@ function createEntity(type, { artificialInput, collision, input, position, sprit
   };
 };
 
+function fireTorpedo({ position: subPos, velocity: subVel }) {
+  const collision = new Collision(true, true);
+  const sprite = new Sprite(false, renderTorpedo, null, () => renderDebris('rgb(220,240,150)'));
+  const ttl = new Ttl(30);
+  let dx, dy;
+  if (!subVel.dx && !subVel.dy) {
+    if (subPos.r === 0) {
+      dx = 0;
+      dy = -1;
+    } else if (subPos.r === 90) {
+      dx = 1;
+      dy = 0;
+    } else if (subPos.r === 180) {
+      dx = 0;
+      dy = 1;
+    } else if (subPos.r === 270) {
+      dx = -1;
+      dy = 0;
+    }
+  } else {
+    dx = subVel.dx;
+    dy = subVel.dy;
+  }
+  let x = subPos.x;
+  let y = subPos.y;
+  if (subPos.r === 0) {
+    y -= 20;
+  } else if (subPos.r === 45) {
+    x += 15;
+    y -= 15;
+  } else if (subPos.r === 90) {
+    x += 20;
+  } else if (subPos.r === 135) {
+    x += 15;
+    y += 15;
+  } else if (subPos.r === 180) {
+    y += 20;
+  } else if (subPos.r === 225) {
+    x -= 15;
+    y += 15;
+  } else if (subPos.r === 270) {
+    x -= 20;
+  } else if (subPos.r === 315) {
+    x -= 15;
+    y -= 15;
+  }
+  const position = new Position(x, y);
+  position.r = subPos.r;
+  const velocity = new Velocity(60);
+  velocity.dx = dx;
+  velocity.dy = dy;
+  entities.push(createEntity('torpedo', { collision, position, sprite, ttl, velocity }));
+};
+
 function collideEntity(entity) {
   if (entity.collision.killable) {
     // mark entity for removal at end of update() loop
@@ -224,9 +278,9 @@ function applyVelocityToPosition({ velocity, position }) {
   } else {
     // TODO there is got to be a way to make this formula more sensible
     position.r =
-      velocity.dx < 0 && velocity.dy < 0 ? -45 :
-      velocity.dx < 0 && velocity.dy === 0 ? -90 :
-      velocity.dx < 0 && velocity.dy > 0 ? -135 :
+      velocity.dx < 0 && velocity.dy < 0 ? 315 :
+      velocity.dx < 0 && velocity.dy === 0 ? 270 :
+      velocity.dx < 0 && velocity.dy > 0 ? 225 :
       velocity.dx === 0 && velocity.dy < 0 ? 0 :
       velocity.dx > 0 && velocity.dy < 0 ? 45 :
       velocity.dx > 0 && velocity.dy === 0 ? 90 :
@@ -367,6 +421,21 @@ function renderPlayerSub() {
   BUFFER_CTX.arc(0, 0, 5, 0, Math.PI+Math.PI);
   BUFFER_CTX.fillRect(-2, -12, 4, 12);
   BUFFER_CTX.fill();
+  BUFFER_CTX.closePath();
+};
+
+function renderTorpedo() {
+  BUFFER_CTX.shadowBlur = 10;
+  BUFFER_CTX.strokeStyle = hero.online ? 'rgb(220,240,150)' : 'rgb(80,100,80)';
+  BUFFER_CTX.lineWidth = 2;
+  BUFFER_CTX.shadowColor = BUFFER_CTX.strokeStyle;
+  BUFFER_CTX.beginPath();
+  BUFFER_CTX.moveTo(0, -6);
+  BUFFER_CTX.lineTo(0, 2);
+  BUFFER_CTX.stroke();
+  BUFFER_CTX.moveTo(0, 4);
+  BUFFER_CTX.lineTo(0, 6);
+  BUFFER_CTX.stroke();
   BUFFER_CTX.closePath();
 };
 
@@ -545,6 +614,11 @@ onkeydown = function(e) {
           case 'ArrowDown':
           case 'KeyS':
             hero.input.down = 1;
+            break;
+          case 'Space':
+            if (!hero.dead) {
+              fireTorpedo(hero);
+            }
             break;
           case 'KeyP':
             // Pause game as soon as key is pressed
