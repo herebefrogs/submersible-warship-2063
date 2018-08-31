@@ -44,8 +44,11 @@ function Ttl(time) {
   this.timeLeft = time;
 }
 
-function Render(renderer) {
+function Sprite(alwaysRender, renderer, radarRenderer, debrisRenderer) {
+  this.alwaysRender = alwaysRender;
   this.renderer = renderer;
+  this.radarRenderer = radarRenderer;
+  this.debrisRenderer = debrisRenderer;
 }
 
 // RENDER VARIABLES
@@ -83,7 +86,7 @@ function startGame() {
     input: new Input(),
     position: new Position(200, BUFFER.height - 200),
     velocity: new Velocity(40),
-    render: new Render(renderPlayerSub),
+    sprite: new Sprite(true, renderPlayerSub, renderPlayerRadar, () => renderDebris('rgb(75,190,250)')),
   });
   entities = [
     hero,
@@ -92,28 +95,28 @@ function startGame() {
       collision: new Collision(true, true),
       position: new Position(100, 100),
       velocity: new Velocity(20),
-      render: new Render(renderEnemySub),
+      sprite: new Sprite(false, renderEnemySub, renderEnemyRadar, () => renderDebris('rgb(230,90,100)')),
     }),
     createEntity('sub1', {
       artificialInput: new ArtificialInput(3),
       collision: new Collision(true, true),
       position: new Position(100, BUFFER.height - 100),
       velocity: new Velocity(20),
-      render: new Render(renderEnemySub),
+      sprite: new Sprite(false, renderEnemySub, renderEnemyRadar, () => renderDebris('rgb(230,90,100)')),
     }),
     createEntity('sub1', {
       artificialInput: new ArtificialInput(6),
       collision: new Collision(true, true),
       position: new Position(BUFFER.width - 100, 100),
       velocity: new Velocity(20),
-      render: new Render(renderEnemySub),
+      sprite: new Sprite(false, renderEnemySub, renderEnemyRadar, () => renderDebris('rgb(230,90,100)')),
     }),
     createEntity('sub1', {
       artificialInput: new ArtificialInput(5),
       collision: new Collision(true, true),
       position: new Position(BUFFER.width - 100, BUFFER.height - 100),
       velocity: new Velocity(20),
-      render: new Render(renderEnemySub),
+      sprite: new Sprite(false, renderEnemySub, renderEnemyRadar, () => renderDebris('rgb(230,90,100)')),
     }),
   ];
   screen = GAME_SCREEN;
@@ -140,29 +143,20 @@ function constrainToViewport(entity) {
   }
 };
 
-function createEntity(type, { artificialInput, collision, input, position, render, ttl, velocity }) {
+function createEntity(type, { artificialInput, collision, input, position, sprite, ttl, velocity }) {
   return {
     artificialInput,
     collision,
     echo: { ...position },
     input,
     position,
-    render,
+    sprite,
     ttl,
     velocity,
     online: true,
     radius: 6,
     type,
   };
-};
-
-function applyPositionToEcho(entity) {
-  const { position, echo } = entity;
-  if (entity.type === 'player' || entity.type === 'debris' || hero.online && entity.online) {
-    echo.x = position.x;
-    echo.y = position.y;
-    echo.r = position.r;
-  }
 };
 
 function collideEntity(entity) {
@@ -173,7 +167,8 @@ function collideEntity(entity) {
     // add 3 debris in place of entity
     const { position: { x, y }, velocity: { dx, dy, speed } } = entity;
     const collision = new Collision(false, false);
-    const render = new Render(function() { renderDebris(entity === hero ? 'rgb(75,190,250)' : 'rgb(230,90,100)') });
+    const sprite = new Sprite(true, entity.sprite.debrisRenderer);
+
     [1,2,3].forEach(function(i) {
       const position = new Position(x, y);
       const velocity = new Velocity(speed);
@@ -181,7 +176,7 @@ function collideEntity(entity) {
       velocity.dy = dy / 2 + rand(-3, 3) / 10;
       velocity.dr = rand(1, i+1) * (i%2 ? 1 : -1);
       const ttl = new Ttl(rand(10, 50) / 10);
-      entities.push(createEntity('debris', { collision, position, render, ttl, velocity }));
+      entities.push(createEntity('debris', { collision, position, sprite, ttl, velocity }));
     }); 
   }
 };
@@ -240,12 +235,19 @@ function applyVelocityToPosition({ velocity, position }) {
   }
 };
 
+function applyPositionToEcho({ position, echo, sprite, online }) {
+  if (sprite.alwaysRender || hero.online && online) {
+    echo.x = position.x;
+    echo.y = position.y;
+    echo.r = position.r;
+  }
+};
+
 function applyElapsedTimeToTtl({ ttl }) {
   if (ttl) {
     ttl.timeLeft -= elapsedTime;
   }
-}
-
+};
 
 function update() {
   switch (screen) {
@@ -255,18 +257,20 @@ function update() {
         screen = END_SCREEN;
       }
       entities.forEach((entity) => {
-        applyInputToVelocity(entity);
         applyArtificialInputToVelocity(entity);
+        applyInputToVelocity(entity);
         applyVelocityToPosition(entity);
-        if (entity !== hero) {
-          if (testCircleCollision(hero, entity)) {
-            collideEntity(hero);
-            collideEntity(entity);
-          }
-        }
-        constrainToViewport(entity);
         applyPositionToEcho(entity);
         applyElapsedTimeToTtl(entity);
+        constrainToViewport(entity);
+      });
+      entities.forEach((entity1, n) => {
+        entities.slice(n + 1).forEach((entity2) => {
+          if (testCircleCollision(entity1, entity2)) {
+            collideEntity(entity1);
+            collideEntity(entity2);
+          }
+        });
       });
       // remove dead entities or entities with zero/negative time to live
       entities = entities.filter(({ dead, ttl }) => !dead && (!ttl || ttl.timeLeft > 0));
@@ -344,13 +348,13 @@ function renderGrid() {
   BUFFER_CTX.fillRect(0, 0, BUFFER.width, BUFFER.height);
 };
 
-function renderEntity({ echo, render }) {
+function renderEntity({ echo, sprite }) {
   BUFFER_CTX.save();
 
   BUFFER_CTX.translate(Math.round(echo.x), Math.round(echo.y));
   BUFFER_CTX.rotate(echo.r / 180 * Math.PI);
 
-  render.renderer();
+  sprite.renderer();
 
   BUFFER_CTX.restore();
 };
@@ -390,33 +394,25 @@ function renderDebris(color) {
 };
 
 function renderRadar(entity) {
-  BUFFER_CTX.save();
-
-  const { echo, dashOffset = 0, dashTime = 0 } = entity;
-  BUFFER_CTX.translate(Math.round(echo.x), Math.round(echo.y));
-
-  if (entity.type === 'player') {
-    renderPlayerRadar(dashOffset);
-    // TODO should be done in update()
-    entity.dashTime = dashTime + elapsedTime;
-    if (entity.dashTime > DASH_FRAME_DURATION) {
-      entity.dashTime -= DASH_FRAME_DURATION;
-      entity.dashOffset = (dashOffset-1) % 12;  // next line dash: 4, 8, 12 <- offset
-    }
-  } else if (entity.type === 'sub1') {
-    renderEnemyRadar();
+  const { echo, sprite} = entity;
+  if (sprite.radarRenderer) {
+    BUFFER_CTX.save(); 
+    BUFFER_CTX.translate(Math.round(echo.x), Math.round(echo.y));
+  
+    sprite.radarRenderer(entity);
+  
+    BUFFER_CTX.restore();
   }
-
-  BUFFER_CTX.restore();
 };
 
-function renderPlayerRadar(dashOffset) {
+function renderPlayerRadar(entity) {
+  const { dashOffset = 0, dashTime = 0 } = entity;
   // radar
   BUFFER_CTX.shadowBlur = 10;
   BUFFER_CTX.strokeStyle = 'rgb(70,105,105)';
   BUFFER_CTX.shadowColor = BUFFER_CTX.strokeStyle;
   BUFFER_CTX.beginPath();
-  BUFFER_CTX.arc(0, 0, 80, 0, Math.PI+Math.PI);
+  BUFFER_CTX.arc(0, 0, 100, 0, Math.PI+Math.PI);
   BUFFER_CTX.stroke();
   BUFFER_CTX.closePath();
   // proximity alert
@@ -426,6 +422,13 @@ function renderPlayerRadar(dashOffset) {
   BUFFER_CTX.arc(0, 0, 40, 0, Math.PI+Math.PI);
   BUFFER_CTX.stroke();
   BUFFER_CTX.closePath();
+  // TODO should be done in update()
+  entity.dashTime = dashTime + elapsedTime;
+  if (entity.dashTime > DASH_FRAME_DURATION) {
+    entity.dashTime -= DASH_FRAME_DURATION;
+    entity.dashOffset = (dashOffset-1) % 12;  // next line dash: 4, 8, 12 <- offset
+  }
+
 };
 
 function renderEnemyRadar() {
