@@ -161,7 +161,7 @@ function createEntity(type, { artificialInput, collision, input, position, sprit
 
 function fireTorpedo({ position: subPos, velocity: subVel }) {
   const collision = new Collision(true, true);
-  const sprite = new Sprite(false, renderTorpedo, null, () => renderDebris('rgb(220,240,150)'));
+  const sprite = new Sprite(false, renderTorpedo, renderTorpedoRadar, () => renderDebris('rgb(220,240,150)'));
   const ttl = new Ttl(30);
   let dx, dy;
   if (!subVel.dx && !subVel.dy) {
@@ -226,10 +226,10 @@ function collideEntity(entity) {
     [1,2,3].forEach(function(i) {
       const position = new Position(x, y);
       const velocity = new Velocity(speed);
-      velocity.dx = dx / 2 + rand(-3, 3) / 10;
-      velocity.dy = dy / 2 + rand(-3, 3) / 10;
+      velocity.dx = dx / 2 + rand(-2, 2) / 10;
+      velocity.dy = dy / 2 + rand(-2, 2) / 10;
       velocity.dr = rand(1, i+1) * (i%2 ? 1 : -1);
-      const ttl = new Ttl(rand(10, 50) / 10);
+      const ttl = new Ttl(rand(20, 50) / 10);
       entities.push(createEntity('debris', { collision, position, sprite, ttl, velocity }));
     }); 
   }
@@ -427,7 +427,7 @@ function renderPlayerSub() {
 function renderTorpedo() {
   BUFFER_CTX.shadowBlur = 10;
   BUFFER_CTX.strokeStyle = hero.online ? 'rgb(220,240,150)' : 'rgb(80,100,80)';
-  BUFFER_CTX.lineWidth = 2;
+  BUFFER_CTX.lineWidth = 3;
   BUFFER_CTX.shadowColor = BUFFER_CTX.strokeStyle;
   BUFFER_CTX.beginPath();
   BUFFER_CTX.moveTo(0, -6);
@@ -472,6 +472,21 @@ function renderRadar(entity) {
   
     BUFFER_CTX.restore();
   }
+};
+
+function renderTorpedoRadar({ echo }) {
+  BUFFER_CTX.rotate(echo.r / 180 * Math.PI);
+  BUFFER_CTX.shadowBlur = 10;
+  BUFFER_CTX.strokeStyle = hero.online ? 'rgb(220,240,150)' : 'rgb(80,100,80)';
+  BUFFER_CTX.shadowColor = BUFFER_CTX.strokeStyle;
+  BUFFER_CTX.fillStyle = hero.online ? 'rgba(80,100,80,0.15)': 'rgba(80,100,80,0.25)';
+  BUFFER_CTX.beginPath();
+  BUFFER_CTX.moveTo(-4, 0);
+  BUFFER_CTX.arc(0, 0, 200, -Math.PI*5/8, -Math.PI*3/8);
+  BUFFER_CTX.lineTo(4, 0);
+  BUFFER_CTX.fill();
+  BUFFER_CTX.stroke();
+  BUFFER_CTX.closePath();
 };
 
 function renderPlayerRadar(entity) {
