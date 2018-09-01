@@ -3,10 +3,10 @@ gameplay
 ========
 - offline mode with Service Worker
 - some rock formations (collide, indestructible)
+- somb better torpedoes (straight at first than latch onto a target that passes into its radar... will also need torpedo groups player/enemy so the 2nd torpedo fired doesn't track the 1st one)
 - always centered on player + lerp (have grid move)
 - add parallax to rock formation to suggest 3D
 - some AI for enemies (attach player, evade torpedoes, follow a path)
-- somb better torpedoes (straight at first than latch onto a target)
 - some levels/missions (kill all, kill vip, protect vip)
 - enemy submarines that also go offline
 - firing in offline mode should reveal position temporarily

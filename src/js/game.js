@@ -24,15 +24,17 @@ function ArtificialInput(time) {
   this.nextChange = this.remaining = time;
 }
 
-function Velocity(speed) {
-  this.dx = this.dy = this.dr = 0;
+function Velocity(speed, dx = 0, dy = 0, dr = 0) {
   this.speed = speed;
+  this.dx = dx;
+  this.dy = dy;
+  this.dr = dr;
 }
 
-function Position(x, y) {
+function Position(x, y, r = 0) {
   this.x = x;
   this.y = y;
-  this.r = 0;
+  this.r = r;
 }
 
 function Collision(collide, killable) {
@@ -89,6 +91,12 @@ function startGame() {
     sprite: new Sprite(true, renderPlayerSub, renderPlayerRadar, () => renderDebris('rgb(75,190,250)')),
   });
   entities = [
+    createEntity('rock', {
+      collision: new Collision(true, false),
+      position: new Position(BUFFER.width - 200, 200),
+      velocity: new Velocity(0),
+      sprite: new Sprite(true, renderRock),
+    }),
     hero,
     createEntity('sub1', {
       artificialInput: new ArtificialInput(4),
@@ -205,11 +213,8 @@ function fireTorpedo({ position: subPos, velocity: subVel }) {
     x -= 15;
     y -= 15;
   }
-  const position = new Position(x, y);
-  position.r = subPos.r;
-  const velocity = new Velocity(60);
-  velocity.dx = dx;
-  velocity.dy = dy;
+  const position = new Position(x, y, subPos.r);
+  const velocity = new Velocity(60, dx, dy);
   entities.push(createEntity('torpedo', { collision, position, sprite, ttl, velocity }));
 };
 
@@ -225,10 +230,12 @@ function collideEntity(entity) {
 
     [1,2,3].forEach(function(i) {
       const position = new Position(x, y);
-      const velocity = new Velocity(speed);
-      velocity.dx = dx / 2 + rand(-2, 2) / 10;
-      velocity.dy = dy / 2 + rand(-2, 2) / 10;
-      velocity.dr = rand(1, i+1) * (i%2 ? 1 : -1);
+      const velocity = new Velocity(
+        speed,
+        dx / 2 + rand(-2, 2) / 10,
+        dy / 2 + rand(-2, 2) / 10,
+        rand(1, i+1) * (i%2 ? 1 : -1)
+      );
       const ttl = new Ttl(rand(20, 50) / 10);
       entities.push(createEntity('debris', { collision, position, sprite, ttl, velocity }));
     }); 
@@ -472,6 +479,24 @@ function renderRadar(entity) {
   
     BUFFER_CTX.restore();
   }
+};
+
+function renderRock() {
+  BUFFER_CTX.shadowBlur = 10;
+  BUFFER_CTX.strokeStyle = 'rgb(70,105,105)';
+  BUFFER_CTX.shadowColor = BUFFER_CTX.strokeStyle;
+  BUFFER_CTX.fillStyle = 'rgba(30,60,60,0.5)';
+  BUFFER_CTX.beginPath();
+  BUFFER_CTX.moveTo(-100, -50);
+  BUFFER_CTX.lineTo(-50, -40);
+  BUFFER_CTX.lineTo(20, -45);
+  BUFFER_CTX.lineTo(30, -25);
+  BUFFER_CTX.lineTo(20, 10);
+  BUFFER_CTX.lineTo(-10, 25);
+  BUFFER_CTX.lineTo(-85, -15);
+  BUFFER_CTX.closePath();
+  BUFFER_CTX.fill();
+  BUFFER_CTX.stroke();
 };
 
 function renderTorpedoRadar({ echo }) {
