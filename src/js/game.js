@@ -12,10 +12,12 @@ const GAME_SCREEN = 1;
 const END_SCREEN = 2;
 let screen = TITLE_SCREEN;
 
-let countdown; // in seconds
 let hero;
 let entities;
-let nbSubSunk;
+let looseCondition;
+let winCondition;
+let endTime;
+let nbSubSunk = 0;
 
 function Input() {
   this.left = this.right = this.up = this.down = 0;
@@ -83,7 +85,7 @@ let running = true;
 // GAMEPLAY HANDLERS
 
 function startGame() {
-  countdown = 60;
+  endTime = 0;
   hero = createEntity('player', {
     collision: new Collision(true, konamiIndex !== konamiCode.length),
     input: new Input(),
@@ -91,14 +93,8 @@ function startGame() {
     velocity: new Velocity(40),
     sprite: new Sprite(true, renderPlayerSub, renderPlayerRadar, () => renderDebris('rgb(75,190,250)')),
   });
-  entities = [
-    // createEntity('rock', {
-    //   collision: new Collision(true, false),
-    //   position: new Position(BUFFER.width - 200, 200),
-    //   velocity: new Velocity(0),
-    //   sprite: new Sprite(true, renderRock),
-    // }),
-    hero,
+  looseCondition = [hero];
+  winCondition = [
     createEntity('sub1', {
       artificialInput: new ArtificialInput(4),
       collision: new Collision(true, true),
@@ -127,6 +123,16 @@ function startGame() {
       velocity: new Velocity(20),
       sprite: new Sprite(false, renderEnemySub, renderEnemyRadar, () => renderDebris('rgb(230,90,100)')),
     }),
+  ];
+  entities = [
+    // createEntity('rock', {
+    //   collision: new Collision(true, false),
+    //   position: new Position(BUFFER.width - 200, 200),
+    //   velocity: new Velocity(0),
+    //   sprite: new Sprite(true, renderRock),
+    // }),
+    ...looseCondition,
+    ...winCondition,
   ];
   screen = GAME_SCREEN;
 };
@@ -223,6 +229,9 @@ function collideEntity(entity) {
   if (entity.collision.killable) {
     // mark entity for removal at end of update() loop
     entity.dead = true;
+    if (entity !== hero && entity.type !== 'torpedo') {
+      nbSubSunk++;
+    }
 
     // add 3 debris in place of entity
     const { position: { x, y }, velocity: { dx, dy, speed } } = entity;
@@ -311,13 +320,19 @@ function applyElapsedTimeToTtl({ ttl }) {
   }
 };
 
+function checkEndGame() {
+  if (looseCondition.length === looseCondition.filter(({dead}) => dead).length
+    || winCondition.length === winCondition.filter(({ dead }) => dead).length) {
+      endTime += elapsedTime;
+  }
+  if (endTime > 4) {
+    screen = END_SCREEN;
+  }
+};
+
 function update() {
   switch (screen) {
     case GAME_SCREEN:
-      countdown -= elapsedTime;
-      if (countdown < 0) {
-        screen = END_SCREEN;
-      }
       entities.forEach((entity) => {
         applyArtificialInputToVelocity(entity);
         applyInputToVelocity(entity);
@@ -336,7 +351,7 @@ function update() {
       });
       // remove dead entities or entities with zero/negative time to live
       entities = entities.filter(({ dead, ttl }) => !dead && (!ttl || ttl.timeLeft > 0));
-
+      checkEndGame();
       break;
   }
 };
@@ -372,10 +387,10 @@ function render() {
       entities.forEach(renderRadar);
       entities.forEach(renderEntity);
       renderText(`sonar: ${hero.online ? 'on' : 'off'}line`, CHARSET_SIZE, CHARSET_SIZE);
-      renderCountdown();
       break;
     case END_SCREEN:
       renderText('game over', CHARSET_SIZE, CHARSET_SIZE);
+      renderText(`you ${winCondition.length === winCondition.filter(({ dead }) => dead).length ? 'won' : 'lost'}`, BUFFER.width / 2, BUFFER.height / 2, ALIGN_CENTER)
       break;
   }
 
@@ -402,7 +417,6 @@ function renderCountdown() {
   const minutes = Math.floor(Math.ceil(countdown) / 60);
   const seconds = Math.ceil(countdown) - minutes * 60;
   renderText(`${minutes}:${seconds <= 9 ? '0' : ''}${seconds}`, BUFFER.width - CHARSET_SIZE, CHARSET_SIZE, ALIGN_RIGHT);
-
 };
 
 function renderGrid() {
