@@ -1,4 +1,4 @@
-Subwar 2051 (theme "Offline")
+Submersible Warship 2063 (theme "Offline")
 =============================
 
 Getting Started

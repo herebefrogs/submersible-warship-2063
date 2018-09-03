@@ -15,6 +15,7 @@ let screen = TITLE_SCREEN;
 let countdown; // in seconds
 let hero;
 let entities;
+let nbSubSunk;
 
 function Input() {
   this.left = this.right = this.up = this.down = 0;
@@ -91,12 +92,12 @@ function startGame() {
     sprite: new Sprite(true, renderPlayerSub, renderPlayerRadar, () => renderDebris('rgb(75,190,250)')),
   });
   entities = [
-    createEntity('rock', {
-      collision: new Collision(true, false),
-      position: new Position(BUFFER.width - 200, 200),
-      velocity: new Velocity(0),
-      sprite: new Sprite(true, renderRock),
-    }),
+    // createEntity('rock', {
+    //   collision: new Collision(true, false),
+    //   position: new Position(BUFFER.width - 200, 200),
+    //   velocity: new Velocity(0),
+    //   sprite: new Sprite(true, renderRock),
+    // }),
     hero,
     createEntity('sub1', {
       artificialInput: new ArtificialInput(4),
@@ -357,7 +358,7 @@ function render() {
 
   switch (screen) {
     case TITLE_SCREEN:
-      renderText('subwar 2051', CHARSET_SIZE, CHARSET_SIZE);
+      renderText('submersible warship 2063', CHARSET_SIZE, CHARSET_SIZE);
       renderText('press any key', BUFFER.width / 2, BUFFER.height / 2, ALIGN_CENTER);
       // TODO remove and play konami code sound instead
       if (konamiIndex === konamiCode.length) {
@@ -594,7 +595,7 @@ function toggleLoop(value) {
 
 onload = async (e) => {
   // the real "main" of the game
-  _document.title = 'Subwar 2051';
+  _document.title = 'Submersible Warship 2063';
 
   onresize();
   initTileset();
@@ -708,7 +709,7 @@ onkeyup = function(e) {
     case END_SCREEN:
       switch (e.code) {
         case 'KeyT':
-          open(`https://twitter.com/intent/tweet?text=viral%20marketing%20message%20https%3A%2F%2Fgoo.gl%2F${'some tiny Google url here'}`, '_blank');
+          open(`https://twitter.com/intent/tweet?text=I%20sunk%20${nbSubSunk||0}%20enemy%20submarines%20in%20Submersible%20Warship%202063%20by%20@herebefrogs%20for%20@js13kgames%202018%3A%20https%3A%2F%2Fgoo.gl%2FHLo6Df`, '_blank');
           break;
         default:
           konamiIndex = 0;
