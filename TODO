@@ -2,8 +2,11 @@
 gameplay
 ========
 - offline mode with Service Worker
-- somb better torpedoes (straight at first than latch onto a target that passes into its radar... will also need torpedo groups player/enemy so the 2nd torpedo fired doesn't track the 1st one)
+- sub control refactor up/down = throttle, left/right = angle... (in theory, more realistic and easier input or lock)
+- entity groups (foes and friend)
 - some AI for enemies (attach player, evade torpedoes, follow a path)
+- triangular bounding box for torpedo locking (instead of complete circle)
+  or could use combination of inRange + delta angle between torpedo angle and sub angle...
 - always centered on player + lerp (have grid move)
 - some levels/missions (kill all, kill vip, protect vip)
 - some rock formations (collide, indestructible)

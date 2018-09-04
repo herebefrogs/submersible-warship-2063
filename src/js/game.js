@@ -23,8 +23,12 @@ function Input() {
   this.left = this.right = this.up = this.down = 0;
 }
 
-function ArtificialInput(time) {
-  this.nextChange = this.remaining = time;
+function Strategy(type, target) {
+  this.type = type;
+  this.target = target;
+  // TODO remove when 'random' isn't a thing anymore
+  this.nextChange = 2;
+  this.remaining = 0;
 }
 
 function Velocity(speed, dx = 0, dy = 0, dr = 0) {
@@ -96,39 +100,43 @@ function startGame() {
   looseCondition = [hero];
   winCondition = [
     createEntity('sub1', {
-      artificialInput: new ArtificialInput(4),
       collision: new Collision(true, true),
+      input: new Input(),
       position: new Position(100, 100),
       velocity: new Velocity(20),
+      strategy: new Strategy('random'),
       sprite: new Sprite(false, renderEnemySub, renderEnemyRadar, () => renderDebris('rgb(230,90,100)')),
     }),
     createEntity('sub1', {
-      artificialInput: new ArtificialInput(3),
       collision: new Collision(true, true),
+      input: new Input(),
       position: new Position(100, BUFFER.height - 100),
       velocity: new Velocity(20),
+      strategy: new Strategy('random'),
       sprite: new Sprite(false, renderEnemySub, renderEnemyRadar, () => renderDebris('rgb(230,90,100)')),
     }),
     createEntity('sub1', {
-      artificialInput: new ArtificialInput(6),
       collision: new Collision(true, true),
+      input: new Input(),
       position: new Position(BUFFER.width - 100, 100),
       velocity: new Velocity(20),
+      strategy: new Strategy('random'),
       sprite: new Sprite(false, renderEnemySub, renderEnemyRadar, () => renderDebris('rgb(230,90,100)')),
     }),
     createEntity('sub1', {
-      artificialInput: new ArtificialInput(5),
       collision: new Collision(true, true),
+      input: new Input(),
       position: new Position(BUFFER.width - 100, BUFFER.height - 100),
       velocity: new Velocity(20),
+      strategy: new Strategy('random'),
       sprite: new Sprite(false, renderEnemySub, renderEnemyRadar, () => renderDebris('rgb(230,90,100)')),
     }),
   ];
   entities = [
     // createEntity('rock', {
-    //   collision: new Collision(true, false),
-    //   position: new Position(BUFFER.width - 200, 200),
-    //   velocity: new Velocity(0),
+      //   collision: new Collision(true, false),
+      //   position: new Position(BUFFER.width - 200, 200),
+      //   velocity: new Velocity(0),
     //   sprite: new Sprite(true, renderRock),
     // }),
     ...looseCondition,
@@ -137,11 +145,28 @@ function startGame() {
   screen = GAME_SCREEN;
 };
 
+function createEntity(type, components) {
+  return {
+    ...components,
+    echo: { ...components.position },
+    online: true,
+    radius: 6,
+    type,
+  };
+};
+
+function inRange({ x: x1, y: y1 }, { x: x2, y: y2 }, distance) {
+  return Math.pow(distance, 2) > Math.pow(x1 - x2, 2) + Math.pow(y1 - y2, 2)
+};
+
 function testCircleCollision(entity1, entity2) {
   const { position: position1, collision: collision1 } = entity1;
   const { position: position2, collision: collision2 } = entity2;
-  return collision1.collide && collision2.collide &&
-    Math.pow(entity1.radius + entity2.radius, 2) > Math.pow(position1.x - position2.x, 2) + Math.pow(position1.y - position2.y, 2);
+  return (
+    collision1.collide
+    && collision2.collide
+    && inRange(position1, position2, entity1.radius + entity2.radius)
+  );
 };
 
 function constrainToViewport(entity) {
@@ -158,26 +183,13 @@ function constrainToViewport(entity) {
   }
 };
 
-function createEntity(type, { artificialInput, collision, input, position, sprite, ttl, velocity }) {
-  return {
-    artificialInput,
-    collision,
-    echo: { ...position },
-    input,
-    position,
-    sprite,
-    ttl,
-    velocity,
-    online: true,
-    radius: 6,
-    type,
-  };
-};
-
-function fireTorpedo({ position: subPos, velocity: subVel }) {
+function fireTorpedo({ position: subPos, velocity: subVel }, target) {
+  const strategy = new Strategy(target ? 'track' : 'cruise');
+  const input = target ? new Input() : null;
   const collision = new Collision(true, true);
   const sprite = new Sprite(false, renderTorpedo, renderTorpedoRadar, () => renderDebris('rgb(220,240,150)'));
   const ttl = new Ttl(30);
+  // send torpedo in same direction as sub is moving/facing
   let dx, dy;
   if (!subVel.dx && !subVel.dy) {
     if (subPos.r === 0) {
@@ -197,6 +209,7 @@ function fireTorpedo({ position: subPos, velocity: subVel }) {
     dx = subVel.dx;
     dy = subVel.dy;
   }
+  // place torpedo ahead of sub so it doesn't immediately collide with it
   let x = subPos.x;
   let y = subPos.y;
   if (subPos.r === 0) {
@@ -222,7 +235,7 @@ function fireTorpedo({ position: subPos, velocity: subVel }) {
   }
   const position = new Position(x, y, subPos.r);
   const velocity = new Velocity(60, dx, dy);
-  entities.push(createEntity('torpedo', { collision, position, sprite, ttl, velocity }));
+  entities.push(createEntity('torpedo', { collision, input, position, sprite, strategy, ttl, velocity }));
 };
 
 function collideEntity(entity) {
@@ -252,6 +265,61 @@ function collideEntity(entity) {
   }
 };
 
+function updateStrategy(entity) {
+  const { strategy, position } = entity;
+  if (strategy) {
+    switch (strategy.type) {
+      case 'track':
+        const { echo, online } = strategy.target;
+        // if target has gone offline and torpedo within 10px of last known position
+        // TODO 10px should be in a constant of some kind
+        if (!online && inRange(position, echo, 10)) {
+          // switch back to moving in a straight line
+          strategy.type = 'cruise';
+          entity.input = null;
+        }
+        break;
+      case 'cruise':
+        // TODO gonna need 2 groups (foes vs friends) so torpedo latch on proper target
+        winCondition.forEach(function(enemy) {
+          const { echo } = enemy;
+          // TODO 180 works for torpedos right now, but might need to change when applied to enemy sub range
+          if (inRange(position, echo, 180)) {
+            strategy.type = 'track';
+            strategy.target = enemy;
+            entity.input = new Input();
+          }
+        });
+        break;
+    }
+  }
+};
+
+function applyStrategyToInput({ input, position, strategy }) {
+  if (strategy) {
+    switch (strategy.type) {
+      case 'track':
+        const { target: { echo } } = strategy;
+        input.left = Math.round(echo.x) < Math.round(position.x) ? -1 : 0;
+        input.right = Math.round(echo.x) > Math.round(position.x) ? 1 : 0;
+        input.up = Math.round(echo.y) < Math.round(position.y) ? -1 : 0;
+        input.down = Math.round(echo.y) > Math.round(position.y) ? 1 : 0;
+        break;
+      case 'random':
+        strategy.remaining -= elapsedTime;
+        if (strategy.remaining < 0) {
+          strategy.remaining += strategy.nextChange;
+
+          input.up = choice([-1, 0]);
+          input.left = choice([-1, 0]);
+          input.right = choice([1, 0]);
+          input.down = choice([1, 0]);
+        }
+        break;
+    }
+  }
+};
+
 // if both dx & dy = 1, then diagonal vector should have length 1
 // therefore 1^2 = r^2 + r^2
 // therefore r = sqrt(1 / 2);
@@ -265,22 +333,6 @@ function applyInputToVelocity({ input, velocity }) {
     if (velocity.dx && velocity.dy) {
       velocity.dx *= DIAGONAL_VELOCITY;
       velocity.dy *= DIAGONAL_VELOCITY;
-    }
-  }
-};
-
-function applyArtificialInputToVelocity({ artificialInput, velocity }) {
-  if (artificialInput) {
-    artificialInput.remaining -= elapsedTime;
-    if (artificialInput.remaining < 0) {
-      artificialInput.remaining += artificialInput.nextChange;
-
-      velocity.dx = choice([-1, 0, 1]);
-      velocity.dy = choice([-1, 0, 1]);
-      if (velocity.dx && velocity.dy) {
-        velocity.dx *= DIAGONAL_VELOCITY;
-        velocity.dy *= DIAGONAL_VELOCITY;
-      }
     }
   }
 };
@@ -334,7 +386,8 @@ function update() {
   switch (screen) {
     case GAME_SCREEN:
       entities.forEach((entity) => {
-        applyArtificialInputToVelocity(entity);
+        updateStrategy(entity);
+        applyStrategyToInput(entity);
         applyInputToVelocity(entity);
         applyVelocityToPosition(entity);
         applyPositionToEcho(entity);
