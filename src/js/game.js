@@ -333,9 +333,14 @@ function applyPositionToEcho({ position, echo, sprite, online }) {
   }
 };
 
-function applyElapsedTimeToTtl({ ttl }) {
+function applyElapsedTimeToTtl(entity) {
+  let {ttl} = entity;
   if (ttl) {
     ttl.timeLeft -= elapsedTime;
+    if (ttl.timeLeft < 1) {
+      // kill entities with zero/negative time to live
+      entity.dead = true;
+    }
   }
 };
 
