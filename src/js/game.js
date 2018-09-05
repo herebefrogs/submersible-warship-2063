@@ -12,6 +12,7 @@ let screen = TITLE_SCREEN;
 
 let hero;
 let entities;
+let raised = [];
 let looseCondition;
 let winCondition;
 let endTime;
@@ -158,6 +159,16 @@ function createEntity(type, components) {
   };
 };
 
+function maintainWorld() {
+  // remove dead entities
+  entities = entities.filter(({ dead }) => !dead);
+  // add raised entities
+  if (raised.length > 0) {
+    raised.forEach(entity => entities.push(entity));
+    raised = [];
+  }
+}
+
 function inRange({ x: x1, y: y1 }, { x: x2, y: y2 }, distance) {
   return Math.pow(distance, 2) > Math.pow(x1 - x2, 2) + Math.pow(y1 - y2, 2)
 };
@@ -194,7 +205,7 @@ function fireTorpedo({ position: subPos, velocity: subVel }, target) {
 
   const position = new Position(x, y, subPos.r);
   const velocity = new Velocity(60, dx, dy);
-  entities.push(createEntity('torpedo', { collision, input, position, sprite, strategy, ttl, velocity }));
+  raised.push(createEntity('torpedo', { collision, input, position, sprite, strategy, ttl, velocity }));
 };
 
 function collideEntity(entity) {
@@ -219,7 +230,7 @@ function collideEntity(entity) {
         rand(1, i+1) * (i%2 ? 1 : -1)
       );
       const ttl = new Ttl(rand(20, 50) / 10);
-      entities.push(createEntity('debris', { collision, position, sprite, ttl, velocity }));
+      raised.push(createEntity('debris', { collision, position, sprite, ttl, velocity }));
     });
   }
 };
@@ -355,8 +366,8 @@ function update() {
       });
       // apply collisions
       collisions.forEach(collideEntity);
-      // remove dead entities or entities with zero/negative time to live
-      entities = entities.filter(({ dead, ttl }) => !dead && (!ttl || ttl.timeLeft > 0));
+      // expire dead entities
+      maintainWorld();
       checkEndGame();
       break;
   }
