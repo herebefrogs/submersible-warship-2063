@@ -17,7 +17,10 @@ let looseCondition;
 let winCondition;
 let endTime;
 let nbSubSunk = 0;
-let RADIAN = 180 / Math.PI;
+
+const RADIAN = 180 / Math.PI;
+
+// COMPONENTS
 
 function Input() {
   this.left = 0;
@@ -66,7 +69,7 @@ function Sprite(alwaysRender, renderer, radarRenderer, debrisRenderer) {
 
 // RENDER VARIABLES
 
-const RATIO = 1.6; // 16:10
+const RATIO = 16 / 10;
 const CTX = c.getContext('2d');         // visible canvas
 const BUFFER = c.cloneNode();           // visible portion of map
 const BUFFER_CTX = BUFFER.getContext('2d');
@@ -74,11 +77,17 @@ const TILESET = c.cloneNode();
 const TILESET_CTX = TILESET.getContext('2d');
 
 const ALPHABET = 'abcdefghijklmnopqrstuvwxyz0123456789.:!-%,/';
+const CHARSET_ATLAS = {};
+const CHARSET_SIZE = 8; // in px
+
+for (let i = 0; i < ALPHABET.length; i++) {
+  CHARSET_ATLAS[ALPHABET[i]] = i * CHARSET_SIZE;
+}
+
 const ALIGN_LEFT = 0;
 const ALIGN_CENTER = 1;
 const ALIGN_RIGHT = 2;
 
-const CHARSET_SIZE = 8; // in px
 const DASH_FRAME_DURATION = 0.1; // duration of 1 animation frame, in seconds
 let charset = '';   // alphabet sprite, filled in by build script, overwritten at runtime
 
@@ -502,7 +511,7 @@ function renderDebris(color) {
 };
 
 function renderRadar(entity) {
-  const { echo, sprite} = entity;
+  const { echo, sprite } = entity;
   if (sprite.radarRenderer) {
     BUFFER_CTX.save();
     BUFFER_CTX.translate(Math.round(echo.x), Math.round(echo.y));
@@ -585,16 +594,18 @@ function renderEnemyRadar() {
 function renderText(msg, x, y, align = ALIGN_LEFT, scale = 1) {
   const SCALED_SIZE = scale * CHARSET_SIZE;
   const MSG_WIDTH = msg.length * SCALED_SIZE;
-  const ALIGN_OFFSET = align === ALIGN_RIGHT ? MSG_WIDTH :
-                       align === ALIGN_CENTER ? MSG_WIDTH / 2 :
-                       0;
+  const ALIGN_OFFSET =
+    align === ALIGN_RIGHT ? MSG_WIDTH :
+    align === ALIGN_CENTER ? MSG_WIDTH / 2 :
+    0;
   [...msg].forEach((c, i) => {
-    BUFFER_CTX.drawImage(
-      charset,
-      // TODO could memoize the characters index or hardcode a lookup table
-      ALPHABET.indexOf(c)*CHARSET_SIZE, 0, CHARSET_SIZE, CHARSET_SIZE,
-      x + i*SCALED_SIZE - ALIGN_OFFSET, y, SCALED_SIZE, SCALED_SIZE
-    );
+    if (c in CHARSET_ATLAS) {
+      BUFFER_CTX.drawImage(
+        charset,
+        CHARSET_ATLAS[c], 0, CHARSET_SIZE, CHARSET_SIZE,
+        x + i*SCALED_SIZE - ALIGN_OFFSET, y, SCALED_SIZE, SCALED_SIZE
+      );
+    }
   });
 };
 
