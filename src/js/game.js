@@ -1,7 +1,5 @@
 import { rand, choice } from './utils';
 
-const _window = window;
-const _document = document;
 const konamiCode = [38, 38, 40, 40, 37, 39, 37, 39, 66, 65];
 let konamiIndex = 0;
 
@@ -21,7 +19,10 @@ let nbSubSunk = 0;
 let RADIAN = 180 / Math.PI;
 
 function Input() {
-  this.left = this.right = this.up = this.down = 0;
+  this.left = 0;
+  this.right = 0;
+  this.up = 0;
+  this.down = 0;
 }
 
 function Strategy(type, target) {
@@ -227,7 +228,7 @@ function collideEntity(entity) {
       );
       const ttl = new Ttl(rand(20, 50) / 10);
       entities.push(createEntity('debris', { collision, position, sprite, ttl, velocity }));
-    }); 
+    });
   }
 };
 
@@ -324,7 +325,7 @@ function applyElapsedTimeToTtl({ ttl }) {
 };
 
 function checkEndGame() {
-  if (looseCondition.length === looseCondition.filter(({dead}) => dead).length
+  if (looseCondition.length === looseCondition.filter(({ dead }) => dead).length
     || winCondition.length === winCondition.filter(({ dead }) => dead).length) {
       endTime += elapsedTime;
   }
@@ -444,7 +445,7 @@ function renderPlayerSub() {
   BUFFER_CTX.fillStyle = 'rgb(75,190,250)';
   BUFFER_CTX.shadowColor = BUFFER_CTX.fillStyle;
   BUFFER_CTX.beginPath();
-  BUFFER_CTX.arc(0, 0, 5, 0, Math.PI+Math.PI);
+  BUFFER_CTX.arc(0, 0, 5, 0, Math.PI*2);
   BUFFER_CTX.fillRect(-2, -12, 4, 12);
   BUFFER_CTX.fill();
   BUFFER_CTX.closePath();
@@ -491,11 +492,11 @@ function renderDebris(color) {
 function renderRadar(entity) {
   const { echo, sprite} = entity;
   if (sprite.radarRenderer) {
-    BUFFER_CTX.save(); 
+    BUFFER_CTX.save();
     BUFFER_CTX.translate(Math.round(echo.x), Math.round(echo.y));
-  
+
     sprite.radarRenderer(entity);
-  
+
     BUFFER_CTX.restore();
   }
 };
@@ -540,14 +541,14 @@ function renderPlayerRadar(entity) {
   BUFFER_CTX.strokeStyle = 'rgb(70,105,105)';
   BUFFER_CTX.shadowColor = BUFFER_CTX.strokeStyle;
   BUFFER_CTX.beginPath();
-  BUFFER_CTX.arc(0, 0, 100, 0, Math.PI+Math.PI);
+  BUFFER_CTX.arc(0, 0, 100, 0, Math.PI*2);
   BUFFER_CTX.stroke();
   BUFFER_CTX.closePath();
   // proximity alert
   BUFFER_CTX.beginPath();
   BUFFER_CTX.lineDashOffset = dashOffset;
   BUFFER_CTX.setLineDash([4, 8]);
-  BUFFER_CTX.arc(0, 0, 40, 0, Math.PI+Math.PI);
+  BUFFER_CTX.arc(0, 0, 40, 0, Math.PI*2);
   BUFFER_CTX.stroke();
   BUFFER_CTX.closePath();
   // TODO should be done in update()
@@ -556,7 +557,6 @@ function renderPlayerRadar(entity) {
     entity.dashTime -= DASH_FRAME_DURATION;
     entity.dashOffset = (dashOffset-1) % 12;  // next line dash: 4, 8, 12 <- offset
   }
-
 };
 
 function renderEnemyRadar() {
@@ -565,7 +565,7 @@ function renderEnemyRadar() {
   BUFFER_CTX.strokeStyle = 'rgb(55,40,35)';
   BUFFER_CTX.shadowColor = BUFFER_CTX.strokeStyle;
   BUFFER_CTX.beginPath();
-  BUFFER_CTX.arc(0, 0, 80, 0, Math.PI+Math.PI);
+  BUFFER_CTX.arc(0, 0, 80, 0, Math.PI*2);
   BUFFER_CTX.stroke();
   BUFFER_CTX.closePath();
 };
@@ -613,7 +613,7 @@ function toggleLoop(value) {
 
 onload = async (e) => {
   // the real "main" of the game
-  _document.title = 'Submersible Warship 2063';
+  document.title = 'Submersible Warship 2063';
 
   onresize();
   initTileset();
@@ -622,7 +622,7 @@ onload = async (e) => {
   toggleLoop(true);
 };
 
-onresize = _window.onrotate = function() {
+onresize = onrotate = () => {
   // fit canvas in screen while maintaining aspect ratio
   c.width = BUFFER.width = innerWidth > innerHeight * RATIO ? innerHeight * RATIO : innerWidth;
   c.height = BUFFER.height = innerWidth > innerHeight * RATIO ? innerHeight : innerWidth / RATIO;
@@ -633,24 +633,22 @@ onresize = _window.onrotate = function() {
 
 // UTILS
 
-_document.onvisibilitychange = function(e) {
+document.onvisibilitychange = (e) => {
   // pause loop and game timer when switching tabs
   toggleLoop(!e.target.hidden);
 };
 
 function loadImg(dataUri) {
-  return new Promise(function(resolve) {
-    var img = new Image();
-    img.onload = function() {
-      resolve(img);
-    };
+  return new Promise((resolve) => {
+    let img = new Image();
+    img.onload = () => resolve(img);
     img.src = dataUri;
   });
 };
 
 // INPUT HANDLERS
 
-onkeydown = function(e) {
+onkeydown = (e) => {
   // prevent itch.io from scrolling the page up/down
   e.preventDefault();
 
@@ -689,7 +687,7 @@ onkeydown = function(e) {
   }
 };
 
-onkeyup = function(e) {
+onkeyup = (e) => {
   switch (screen) {
     case TITLE_SCREEN:
       if (e.which !== konamiCode[konamiIndex] || konamiIndex === konamiCode.length) {
@@ -749,7 +747,7 @@ let touches = [];
 
 // adding onmousedown/move/up triggers a MouseEvent and a PointerEvent
 // on platform that support both (duplicate event, pointer > mouse || touch)
-_window.ontouchstart = _window.onpointerdown = function(e) {
+ontouchstart = onpointerdown = (e) => {
   e.preventDefault();
   switch (screen) {
     case GAME_SCREEN:
@@ -758,7 +756,7 @@ _window.ontouchstart = _window.onpointerdown = function(e) {
   }
 };
 
-_window.ontouchmove = _window.onpointermove = function(e) {
+ontouchmove = onpointermove = (e) => {
   e.preventDefault();
   switch (screen) {
     case GAME_SCREEN:
@@ -769,7 +767,7 @@ _window.ontouchmove = _window.onpointermove = function(e) {
   }
 }
 
-_window.ontouchend = _window.onpointerup = function(e) {
+ontouchend = onpointerup = (e) => {
   e.preventDefault();
   switch (screen) {
     case TITLE_SCREEN:
