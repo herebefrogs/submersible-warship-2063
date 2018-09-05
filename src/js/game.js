@@ -18,6 +18,7 @@ let looseCondition;
 let winCondition;
 let endTime;
 let nbSubSunk = 0;
+let RADIAN = 180 / Math.PI;
 
 function Input() {
   this.left = this.right = this.up = this.down = 0;
@@ -191,49 +192,13 @@ function fireTorpedo({ position: subPos, velocity: subVel }, target) {
   const sprite = new Sprite(false, renderTorpedo, renderTorpedoRadar, () => renderDebris('rgb(220,240,150)'));
   const ttl = new Ttl(30);
   // send torpedo in same direction as sub is moving/facing
-  let dx, dy;
-  if (!subVel.dx && !subVel.dy) {
-    if (subPos.r === 0) {
-      dx = 0;
-      dy = -1;
-    } else if (subPos.r === 90) {
-      dx = 1;
-      dy = 0;
-    } else if (subPos.r === 180) {
-      dx = 0;
-      dy = 1;
-    } else if (subPos.r === 270) {
-      dx = -1;
-      dy = 0;
-    }
-  } else {
-    dx = subVel.dx;
-    dy = subVel.dy;
-  }
+  const dx = -calcDxVelocity(subPos, 1);
+  const dy = -calcDyVelocity(subPos, 1);
+
   // place torpedo ahead of sub so it doesn't immediately collide with it
-  let x = subPos.x;
-  let y = subPos.y;
-  if (subPos.r === 0) {
-    y -= 20;
-  } else if (subPos.r === 45) {
-    x += 15;
-    y -= 15;
-  } else if (subPos.r === 90) {
-    x += 20;
-  } else if (subPos.r === 135) {
-    x += 15;
-    y += 15;
-  } else if (subPos.r === 180) {
-    y += 20;
-  } else if (subPos.r === 225) {
-    x -= 15;
-    y += 15;
-  } else if (subPos.r === 270) {
-    x -= 20;
-  } else if (subPos.r === 315) {
-    x -= 15;
-    y -= 15;
-  }
+  let x = subPos.x + 20*dx;
+  let y = subPos.y + 20*dy;
+
   const position = new Position(x, y, subPos.r);
   const velocity = new Velocity(60, dx, dy);
   entities.push(createEntity('torpedo', { collision, input, position, sprite, strategy, ttl, velocity }));
@@ -321,20 +286,19 @@ function applyStrategyToInput({ input, position, strategy }) {
   }
 };
 
-// if both dx & dy = 1, then diagonal vector should have length 1
-// therefore 1^2 = r^2 + r^2
-// therefore r = sqrt(1 / 2);
-const DIAGONAL_VELOCITY = Math.sqrt(1 / 2);
+function calcDxVelocity({ r }, radius) {
+  return Math.sin(-r / RADIAN) * radius;
+};
 
-function applyInputToVelocity({ input, velocity }) {
+function calcDyVelocity({ r }, radius) {
+  return Math.cos(-r / RADIAN) * radius;
+};
+
+function applyInputToVelocity({ input, position, velocity }) {
   if (input) {
-    velocity.dx = input.left + input.right;
-    velocity.dy = input.up + input.down;
-
-    if (velocity.dx && velocity.dy) {
-      velocity.dx *= DIAGONAL_VELOCITY;
-      velocity.dy *= DIAGONAL_VELOCITY;
-    }
+    velocity.dr = input.left + input.right;
+    velocity.dx = calcDxVelocity(position, input.up + input.down);
+    velocity.dy = calcDyVelocity(position, input.up + input.down);
   }
 };
 
@@ -342,21 +306,7 @@ function applyVelocityToPosition({ velocity, position }) {
   const distance = velocity.speed * elapsedTime;
   position.x += distance * velocity.dx;
   position.y += distance * velocity.dy;
-
-  if (velocity.dr) {
-    position.r = (position.r + distance * velocity.dr) % 360;
-  } else {
-    // TODO there is got to be a way to make this formula more sensible
-    position.r =
-      velocity.dx < 0 && velocity.dy < 0 ? 315 :
-      velocity.dx < 0 && velocity.dy === 0 ? 270 :
-      velocity.dx < 0 && velocity.dy > 0 ? 225 :
-      velocity.dx === 0 && velocity.dy < 0 ? 0 :
-      velocity.dx > 0 && velocity.dy < 0 ? 45 :
-      velocity.dx > 0 && velocity.dy === 0 ? 90 :
-      velocity.dx > 0 && velocity.dy > 0 ? 135 :
-      velocity.dx === 0 && velocity.dy > 0 ? 180 : position.r;
-  }
+  position.r = (position.r + distance * velocity.dr) % 360;
 };
 
 function applyPositionToEcho({ position, echo, sprite, online }) {
@@ -482,7 +432,7 @@ function renderEntity({ echo, sprite }) {
   BUFFER_CTX.save();
 
   BUFFER_CTX.translate(Math.round(echo.x), Math.round(echo.y));
-  BUFFER_CTX.rotate(echo.r / 180 * Math.PI);
+  BUFFER_CTX.rotate(echo.r / RADIAN);
 
   sprite.renderer();
 
