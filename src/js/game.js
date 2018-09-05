@@ -44,9 +44,10 @@ function Position(x, y, r = 0) {
   this.r = r;
 }
 
-function Collision(collide, killable) {
+function Collision(collide, killable, foe) {
   this.collide = collide;
   this.killable = killable;
+  this.foe = foe; // boolean indicating if the entity is a friend or a foe, so torpedoes can lock on the right kind of entity
 }
 
 function Ttl(time) {
@@ -91,7 +92,7 @@ let running = true;
 function startGame() {
   endTime = 0;
   hero = createEntity('player', {
-    collision: new Collision(true, konamiIndex !== konamiCode.length),
+    collision: new Collision(true, konamiIndex !== konamiCode.length, false),
     input: new Input(),
     position: new Position(200, BUFFER.height - 200),
     velocity: new Velocity(40),
@@ -100,7 +101,7 @@ function startGame() {
   looseCondition = [hero];
   winCondition = [
     createEntity('sub1', {
-      collision: new Collision(true, true),
+      collision: new Collision(true, true, true),
       input: new Input(),
       position: new Position(100, 100),
       velocity: new Velocity(20),
@@ -108,7 +109,7 @@ function startGame() {
       sprite: new Sprite(false, renderEnemySub, renderEnemyRadar, () => renderDebris('rgb(230,90,100)')),
     }),
     createEntity('sub1', {
-      collision: new Collision(true, true),
+      collision: new Collision(true, true, true),
       input: new Input(),
       position: new Position(100, BUFFER.height - 100),
       velocity: new Velocity(20),
@@ -116,7 +117,7 @@ function startGame() {
       sprite: new Sprite(false, renderEnemySub, renderEnemyRadar, () => renderDebris('rgb(230,90,100)')),
     }),
     createEntity('sub1', {
-      collision: new Collision(true, true),
+      collision: new Collision(true, true, true),
       input: new Input(),
       position: new Position(BUFFER.width - 100, 100),
       velocity: new Velocity(20),
@@ -124,7 +125,7 @@ function startGame() {
       sprite: new Sprite(false, renderEnemySub, renderEnemyRadar, () => renderDebris('rgb(230,90,100)')),
     }),
     createEntity('sub1', {
-      collision: new Collision(true, true),
+      collision: new Collision(true, true, true),
       input: new Input(),
       position: new Position(BUFFER.width - 100, BUFFER.height - 100),
       velocity: new Velocity(20),
@@ -184,9 +185,9 @@ function constrainToViewport(entity) {
 };
 
 function fireTorpedo({ position: subPos, velocity: subVel }, target) {
-  const strategy = new Strategy(target ? 'track' : 'cruise');
+  const strategy = new Strategy(target ? 'lockon' : 'cruise');
   const input = target ? new Input() : null;
-  const collision = new Collision(true, true);
+  const collision = new Collision(true, true, !!target);
   const sprite = new Sprite(false, renderTorpedo, renderTorpedoRadar, () => renderDebris('rgb(220,240,150)'));
   const ttl = new Ttl(30);
   // send torpedo in same direction as sub is moving/facing
@@ -266,26 +267,26 @@ function collideEntity(entity) {
 };
 
 function updateStrategy(entity) {
-  const { strategy, position } = entity;
+  const { strategy, position, collision: { foe } } = entity;
   if (strategy) {
     switch (strategy.type) {
-      case 'track':
-        const { echo, online } = strategy.target;
-        // if target has gone offline and torpedo within 10px of last known position
+      case 'lockon':
+        const { echo, online, dead } = strategy.target;
+        // if target has been already destroyed, or has gone offline and torpedo within 10px of last known position
         // TODO 10px should be in a constant of some kind
-        if (!online && inRange(position, echo, 10)) {
+        if (dead || (!online && inRange(position, echo, 10))) {
           // switch back to moving in a straight line
           strategy.type = 'cruise';
           entity.input = null;
         }
         break;
       case 'cruise':
-        // TODO gonna need 2 groups (foes vs friends) so torpedo latch on proper target
-        winCondition.forEach(function(enemy) {
+        // torpedoes can only lock on enemy entities
+        entities.filter(({ collision }) => !!collision.foe && collision.foe !== foe).forEach(function(enemy) {
           const { echo } = enemy;
           // TODO 180 works for torpedos right now, but might need to change when applied to enemy sub range
           if (inRange(position, echo, 180)) {
-            strategy.type = 'track';
+            strategy.type = 'lockon';
             strategy.target = enemy;
             entity.input = new Input();
           }
@@ -298,7 +299,7 @@ function updateStrategy(entity) {
 function applyStrategyToInput({ input, position, strategy }) {
   if (strategy) {
     switch (strategy.type) {
-      case 'track':
+      case 'lockon':
         const { target: { echo } } = strategy;
         input.left = Math.round(echo.x) < Math.round(position.x) ? -1 : 0;
         input.right = Math.round(echo.x) > Math.round(position.x) ? 1 : 0;
