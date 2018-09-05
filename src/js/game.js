@@ -338,14 +338,18 @@ function update() {
         applyElapsedTimeToTtl(entity);
         constrainToViewport(entity);
       });
+      // detect collisions
+      let collisions = new Set();
       entities.forEach((entity1, n) => {
         entities.slice(n + 1).forEach((entity2) => {
           if (testCircleCollision(entity1, entity2)) {
-            collideEntity(entity1);
-            collideEntity(entity2);
+            collisions.add(entity1);
+            collisions.add(entity2);
           }
         });
       });
+      // apply collisions
+      collisions.forEach(collideEntity);
       // remove dead entities or entities with zero/negative time to live
       entities = entities.filter(({ dead, ttl }) => !dead && (!ttl || ttl.timeLeft > 0));
       checkEndGame();
