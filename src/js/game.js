@@ -1,4 +1,4 @@
-import { rand, choice } from './utils';
+import { clamp, rand, choice } from './utils';
 
 const konamiCode = [38, 38, 40, 40, 37, 39, 37, 39, 66, 65];
 let konamiIndex = 0;
@@ -174,16 +174,8 @@ function testCircleCollision(entity1, entity2) {
 
 function constrainToViewport(entity) {
   const { position } = entity;
-  if (position.x < 0) {
-    position.x = 0;
-  } else if (position.x > BUFFER.width - entity.radius) {
-    position.x = BUFFER.width - entity.radius;
-  }
-  if (position.y < 0) {
-    position.y = 0;
-  } else if (position.y > BUFFER.height - entity.radius) {
-    position.y = BUFFER.height - entity.radius;
-  }
+  position.x = clamp(position.x, 0, BUFFER.width - entity.radius)
+  position.y = clamp(position.y, 0, BUFFER.height - entity.radius)
 };
 
 function fireTorpedo({ position: subPos, velocity: subVel }, target) {
