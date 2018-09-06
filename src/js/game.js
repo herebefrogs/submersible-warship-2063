@@ -1,7 +1,5 @@
-import { rand, choice } from './utils';
+import { clamp, rand, choice } from './utils';
 
-const _window = window;
-const _document = document;
 const konamiCode = [38, 38, 40, 40, 37, 39, 37, 39, 66, 65];
 let konamiIndex = 0;
 
@@ -14,14 +12,21 @@ let screen = TITLE_SCREEN;
 
 let hero;
 let entities;
+let raised = [];
 let looseCondition;
 let winCondition;
 let endTime;
 let nbSubSunk = 0;
-let RADIAN = 180 / Math.PI;
+
+const RADIAN = 180 / Math.PI;
+
+// COMPONENTS
 
 function Input() {
-  this.left = this.right = this.up = this.down = 0;
+  this.left = 0;
+  this.right = 0;
+  this.up = 0;
+  this.down = 0;
 }
 
 function Strategy(type, target) {
@@ -64,7 +69,7 @@ function Sprite(alwaysRender, renderer, radarRenderer, debrisRenderer) {
 
 // RENDER VARIABLES
 
-const RATIO = 1.6; // 16:10
+const RATIO = 16 / 10;
 const CTX = c.getContext('2d');         // visible canvas
 const BUFFER = c.cloneNode();           // visible portion of map
 const BUFFER_CTX = BUFFER.getContext('2d');
@@ -72,11 +77,17 @@ const TILESET = c.cloneNode();
 const TILESET_CTX = TILESET.getContext('2d');
 
 const ALPHABET = 'abcdefghijklmnopqrstuvwxyz0123456789.:!-%,/';
+const CHARSET_ATLAS = {};
+const CHARSET_SIZE = 8; // in px
+
+for (let i = 0; i < ALPHABET.length; i++) {
+  CHARSET_ATLAS[ALPHABET[i]] = i * CHARSET_SIZE;
+}
+
 const ALIGN_LEFT = 0;
 const ALIGN_CENTER = 1;
 const ALIGN_RIGHT = 2;
 
-const CHARSET_SIZE = 8; // in px
 const DASH_FRAME_DURATION = 0.1; // duration of 1 animation frame, in seconds
 let charset = '';   // alphabet sprite, filled in by build script, overwritten at runtime
 
@@ -157,6 +168,16 @@ function createEntity(type, components) {
   };
 };
 
+function maintainWorld() {
+  // remove dead entities
+  entities = entities.filter(({ dead }) => !dead);
+  // add raised entities
+  if (raised.length > 0) {
+    raised.forEach(entity => entities.push(entity));
+    raised = [];
+  }
+}
+
 function inRange({ x: x1, y: y1 }, { x: x2, y: y2 }, distance) {
   return Math.pow(distance, 2) > Math.pow(x1 - x2, 2) + Math.pow(y1 - y2, 2)
 };
@@ -173,16 +194,8 @@ function testCircleCollision(entity1, entity2) {
 
 function constrainToViewport(entity) {
   const { position } = entity;
-  if (position.x < 0) {
-    position.x = 0;
-  } else if (position.x > BUFFER.width - entity.radius) {
-    position.x = BUFFER.width - entity.radius;
-  }
-  if (position.y < 0) {
-    position.y = 0;
-  } else if (position.y > BUFFER.height - entity.radius) {
-    position.y = BUFFER.height - entity.radius;
-  }
+  position.x = clamp(position.x, 0, BUFFER.width - entity.radius)
+  position.y = clamp(position.y, 0, BUFFER.height - entity.radius)
 };
 
 function fireTorpedo({ position: subPos, velocity: subVel }, target) {
@@ -201,7 +214,7 @@ function fireTorpedo({ position: subPos, velocity: subVel }, target) {
 
   const position = new Position(x, y, subPos.r);
   const velocity = new Velocity(60, dx, dy);
-  entities.push(createEntity('torpedo', { collision, input, position, sprite, strategy, ttl, velocity }));
+  raised.push(createEntity('torpedo', { collision, input, position, sprite, strategy, ttl, velocity }));
 };
 
 function collideEntity(entity) {
@@ -226,8 +239,8 @@ function collideEntity(entity) {
         rand(1, i+1) * (i%2 ? 1 : -1)
       );
       const ttl = new Ttl(rand(20, 50) / 10);
-      entities.push(createEntity('debris', { collision, position, sprite, ttl, velocity }));
-    }); 
+      raised.push(createEntity('debris', { collision, position, sprite, ttl, velocity }));
+    });
   }
 };
 
@@ -317,14 +330,19 @@ function applyPositionToEcho({ position, echo, sprite, online }) {
   }
 };
 
-function applyElapsedTimeToTtl({ ttl }) {
+function applyElapsedTimeToTtl(entity) {
+  let {ttl} = entity;
   if (ttl) {
     ttl.timeLeft -= elapsedTime;
+    if (ttl.timeLeft < 1) {
+      // kill entities with zero/negative time to live
+      entity.dead = true;
+    }
   }
 };
 
 function checkEndGame() {
-  if (looseCondition.length === looseCondition.filter(({dead}) => dead).length
+  if (looseCondition.length === looseCondition.filter(({ dead }) => dead).length
     || winCondition.length === winCondition.filter(({ dead }) => dead).length) {
       endTime += elapsedTime;
   }
@@ -345,16 +363,20 @@ function update() {
         applyElapsedTimeToTtl(entity);
         constrainToViewport(entity);
       });
+      // detect collisions
+      let collisions = new Set();
       entities.forEach((entity1, n) => {
         entities.slice(n + 1).forEach((entity2) => {
           if (testCircleCollision(entity1, entity2)) {
-            collideEntity(entity1);
-            collideEntity(entity2);
+            collisions.add(entity1);
+            collisions.add(entity2);
           }
         });
       });
-      // remove dead entities or entities with zero/negative time to live
-      entities = entities.filter(({ dead, ttl }) => !dead && (!ttl || ttl.timeLeft > 0));
+      // apply collisions
+      collisions.forEach(collideEntity);
+      // expire dead entities
+      maintainWorld();
       checkEndGame();
       break;
   }
@@ -444,7 +466,7 @@ function renderPlayerSub() {
   BUFFER_CTX.fillStyle = 'rgb(75,190,250)';
   BUFFER_CTX.shadowColor = BUFFER_CTX.fillStyle;
   BUFFER_CTX.beginPath();
-  BUFFER_CTX.arc(0, 0, 5, 0, Math.PI+Math.PI);
+  BUFFER_CTX.arc(0, 0, 5, 0, Math.PI*2);
   BUFFER_CTX.fillRect(-2, -12, 4, 12);
   BUFFER_CTX.fill();
   BUFFER_CTX.closePath();
@@ -489,13 +511,13 @@ function renderDebris(color) {
 };
 
 function renderRadar(entity) {
-  const { echo, sprite} = entity;
+  const { echo, sprite } = entity;
   if (sprite.radarRenderer) {
-    BUFFER_CTX.save(); 
+    BUFFER_CTX.save();
     BUFFER_CTX.translate(Math.round(echo.x), Math.round(echo.y));
-  
+
     sprite.radarRenderer(entity);
-  
+
     BUFFER_CTX.restore();
   }
 };
@@ -540,14 +562,14 @@ function renderPlayerRadar(entity) {
   BUFFER_CTX.strokeStyle = 'rgb(70,105,105)';
   BUFFER_CTX.shadowColor = BUFFER_CTX.strokeStyle;
   BUFFER_CTX.beginPath();
-  BUFFER_CTX.arc(0, 0, 100, 0, Math.PI+Math.PI);
+  BUFFER_CTX.arc(0, 0, 100, 0, Math.PI*2);
   BUFFER_CTX.stroke();
   BUFFER_CTX.closePath();
   // proximity alert
   BUFFER_CTX.beginPath();
   BUFFER_CTX.lineDashOffset = dashOffset;
   BUFFER_CTX.setLineDash([4, 8]);
-  BUFFER_CTX.arc(0, 0, 40, 0, Math.PI+Math.PI);
+  BUFFER_CTX.arc(0, 0, 40, 0, Math.PI*2);
   BUFFER_CTX.stroke();
   BUFFER_CTX.closePath();
   // TODO should be done in update()
@@ -556,7 +578,6 @@ function renderPlayerRadar(entity) {
     entity.dashTime -= DASH_FRAME_DURATION;
     entity.dashOffset = (dashOffset-1) % 12;  // next line dash: 4, 8, 12 <- offset
   }
-
 };
 
 function renderEnemyRadar() {
@@ -565,7 +586,7 @@ function renderEnemyRadar() {
   BUFFER_CTX.strokeStyle = 'rgb(55,40,35)';
   BUFFER_CTX.shadowColor = BUFFER_CTX.strokeStyle;
   BUFFER_CTX.beginPath();
-  BUFFER_CTX.arc(0, 0, 80, 0, Math.PI+Math.PI);
+  BUFFER_CTX.arc(0, 0, 80, 0, Math.PI*2);
   BUFFER_CTX.stroke();
   BUFFER_CTX.closePath();
 };
@@ -573,16 +594,18 @@ function renderEnemyRadar() {
 function renderText(msg, x, y, align = ALIGN_LEFT, scale = 1) {
   const SCALED_SIZE = scale * CHARSET_SIZE;
   const MSG_WIDTH = msg.length * SCALED_SIZE;
-  const ALIGN_OFFSET = align === ALIGN_RIGHT ? MSG_WIDTH :
-                       align === ALIGN_CENTER ? MSG_WIDTH / 2 :
-                       0;
+  const ALIGN_OFFSET =
+    align === ALIGN_RIGHT ? MSG_WIDTH :
+    align === ALIGN_CENTER ? MSG_WIDTH / 2 :
+    0;
   [...msg].forEach((c, i) => {
-    BUFFER_CTX.drawImage(
-      charset,
-      // TODO could memoize the characters index or hardcode a lookup table
-      ALPHABET.indexOf(c)*CHARSET_SIZE, 0, CHARSET_SIZE, CHARSET_SIZE,
-      x + i*SCALED_SIZE - ALIGN_OFFSET, y, SCALED_SIZE, SCALED_SIZE
-    );
+    if (c in CHARSET_ATLAS) {
+      BUFFER_CTX.drawImage(
+        charset,
+        CHARSET_ATLAS[c], 0, CHARSET_SIZE, CHARSET_SIZE,
+        x + i*SCALED_SIZE - ALIGN_OFFSET, y, SCALED_SIZE, SCALED_SIZE
+      );
+    }
   });
 };
 
@@ -613,7 +636,7 @@ function toggleLoop(value) {
 
 onload = async (e) => {
   // the real "main" of the game
-  _document.title = 'Submersible Warship 2063';
+  document.title = 'Submersible Warship 2063';
 
   onresize();
   initTileset();
@@ -622,7 +645,7 @@ onload = async (e) => {
   toggleLoop(true);
 };
 
-onresize = _window.onrotate = function() {
+onresize = onrotate = () => {
   // fit canvas in screen while maintaining aspect ratio
   c.width = BUFFER.width = innerWidth > innerHeight * RATIO ? innerHeight * RATIO : innerWidth;
   c.height = BUFFER.height = innerWidth > innerHeight * RATIO ? innerHeight : innerWidth / RATIO;
@@ -633,24 +656,22 @@ onresize = _window.onrotate = function() {
 
 // UTILS
 
-_document.onvisibilitychange = function(e) {
+document.onvisibilitychange = (e) => {
   // pause loop and game timer when switching tabs
   toggleLoop(!e.target.hidden);
 };
 
 function loadImg(dataUri) {
-  return new Promise(function(resolve) {
-    var img = new Image();
-    img.onload = function() {
-      resolve(img);
-    };
+  return new Promise((resolve) => {
+    let img = new Image();
+    img.onload = () => resolve(img);
     img.src = dataUri;
   });
 };
 
 // INPUT HANDLERS
 
-onkeydown = function(e) {
+onkeydown = (e) => {
   // prevent itch.io from scrolling the page up/down
   e.preventDefault();
 
@@ -689,7 +710,7 @@ onkeydown = function(e) {
   }
 };
 
-onkeyup = function(e) {
+onkeyup = (e) => {
   switch (screen) {
     case TITLE_SCREEN:
       if (e.which !== konamiCode[konamiIndex] || konamiIndex === konamiCode.length) {
@@ -749,7 +770,7 @@ let touches = [];
 
 // adding onmousedown/move/up triggers a MouseEvent and a PointerEvent
 // on platform that support both (duplicate event, pointer > mouse || touch)
-_window.ontouchstart = _window.onpointerdown = function(e) {
+ontouchstart = onpointerdown = (e) => {
   e.preventDefault();
   switch (screen) {
     case GAME_SCREEN:
@@ -758,7 +779,7 @@ _window.ontouchstart = _window.onpointerdown = function(e) {
   }
 };
 
-_window.ontouchmove = _window.onpointermove = function(e) {
+ontouchmove = onpointermove = (e) => {
   e.preventDefault();
   switch (screen) {
     case GAME_SCREEN:
@@ -769,7 +790,7 @@ _window.ontouchmove = _window.onpointermove = function(e) {
   }
 }
 
-_window.ontouchend = _window.onpointerup = function(e) {
+ontouchend = onpointerup = (e) => {
   e.preventDefault();
   switch (screen) {
     case TITLE_SCREEN:
