@@ -3,8 +3,6 @@ gameplay
 ========
 - title page SUBWAR 2063
 - offline mode with Service Worker
-- triangular bounding box for torpedo locking (instead of complete circle)
-  or could use combination of inRange + delta angle between torpedo angle and sub angle...
 - some AI for enemies (attach player, evade torpedoes, follow a path)
 - always centered on player + lerp (have grid move)
 - some levels/missions (kill all, kill vip, protect vip)

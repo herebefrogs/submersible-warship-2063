@@ -28,7 +28,7 @@ function Strategy(type, target) {
   this.type = type;
   this.target = target;
   // TODO remove when 'random' isn't a thing anymore
-  this.nextChange = 2;
+  this.nextChange = 0.5;
   this.remaining = 0;
 }
 
@@ -245,7 +245,7 @@ function updateStrategy(entity) {
             ...strategy,
             type: 'cruise',
             target: undefined,
-            nextChange: 2,
+            nextChange: 0.5,
             remaining: 0,
           };
           entity.input = null;
@@ -257,7 +257,7 @@ function updateStrategy(entity) {
         entities.filter(({ collision }) => !!collision.foe && collision.foe !== foe).forEach(function(enemy) {
           const { echo } = enemy;
           // TODO 180 works for torpedos right now, but might need to change when applied to enemy sub range
-          if (inRange(position, echo, 180)) {
+          if (inRange(position, echo, 180) && Math.abs(angleDifference(entity, enemy)) < 22.5) { // 22.5deg = Math.PI/8
             entity.strategy = {
               ...strategy,
               type: 'lockon',
@@ -274,22 +274,25 @@ function updateStrategy(entity) {
   }
 };
 
+
+function angleDifference({ position, velocity }, { echo }) {
+  return angleDifference2DVectors({ x: velocity.dx, y: velocity.dy }, { x: echo.x - position.x, y: echo.y - position.y })
+};
+
 // between 2 vectors, in degree and in range [-180, 180]
-function angleDifference({ x: x1, y: y1 }, { x: x2, y: y2}) {
+function angleDifference2DVectors({ x: x1, y: y1 }, { x: x2, y: y2}) {
   return (((Math.atan2(y2, x2) - Math.atan2(y1, x1)) * RADIAN + 180) % 360) - 180;
 };
 
-function applyStrategyToInput({ input, position, velocity, strategy }) {
+function applyStrategyToInput(entity) {
+  const { input, strategy } = entity
   if (strategy) {
     strategy.remaining -= elapsedTime;
     if (strategy.remaining < 0) {
       strategy.remaining += strategy.nextChange;
       switch (strategy.type) {
         case 'lockon':
-          const { target: { echo } } = strategy;
-          const { dx, dy } = velocity;
-          const { x, y } = position;
-          const angle = angleDifference({ x: dx, y: dy }, { x: echo.x - x, y: echo.y - y });
+          const angle = angleDifference(entity, strategy.target);
           input.left = angle < -5 ? -1 : 0;
           input.right = angle > 5 ? 1 : 0;
           input.up = -1;
