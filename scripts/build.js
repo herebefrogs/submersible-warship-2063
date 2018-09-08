@@ -118,7 +118,7 @@ const zipReport = () => {
   child_process.execSync('zip -jqX9 dist/game.zip dist/index.html');
   console.log('Optimizing ZIP...')
   // optimize zip (requires AdvanceCOMP tools --- on Mac, brew install advancecomp)
-  child_process.execSync('advzip -z4q -i 1000 dist/game.zip');
+  child_process.execSync('advzip -z4q dist/game.zip');
 
 
   // report zip size and remaining bytes

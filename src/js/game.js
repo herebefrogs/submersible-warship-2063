@@ -422,7 +422,8 @@ function render() {
 
   switch (screen) {
     case TITLE_SCREEN:
-      renderText('submersible warship 2063', CHARSET_SIZE, CHARSET_SIZE);
+      renderGrid();
+      renderTitle();
       renderText('press any key', BUFFER.width / 2, BUFFER.height / 2, ALIGN_CENTER);
       // TODO remove and play konami code sound instead
       if (konamiIndex === konamiCode.length) {
@@ -460,6 +461,100 @@ function initTileset() {
   TILESET_CTX.lineTo(4, 8);
   TILESET_CTX.stroke();
   TILESET_CTX.closePath();
+};
+
+function renderTitle() {
+  BUFFER_CTX.save();
+  BUFFER_CTX.shadowBlur = 10;
+  BUFFER_CTX.strokeStyle = 'rgb(70,105,105)';
+  BUFFER_CTX.shadowColor = BUFFER_CTX.strokeStyle;
+  BUFFER_CTX.fillStyle = 'rgba(30,60,60,0.5)';
+  // S
+  BUFFER_CTX.translate(BUFFER.width / 2 - 100, 100);
+  BUFFER_CTX.save();
+  BUFFER_CTX.scale(0.8, 0.8);
+  BUFFER_CTX.rotate(35 / RADIAN);
+  BUFFER_CTX.beginPath();
+  BUFFER_CTX.moveTo(0, 10);
+  BUFFER_CTX.arc(0, 10, 20, Math.PI * 1.5, Math.PI * 0.5);
+  BUFFER_CTX.arc(0, -10, 20, Math.PI * 0.5, Math.PI * 1.5);
+  BUFFER_CTX.closePath();
+  BUFFER_CTX.fill();
+  BUFFER_CTX.stroke();
+  BUFFER_CTX.moveTo(0, 0);
+  BUFFER_CTX.restore();
+  // U
+  BUFFER_CTX.translate(38, 0);
+  BUFFER_CTX.beginPath();
+  BUFFER_CTX.arc(0, 5, 15, Math.PI * 2, Math.PI);
+  BUFFER_CTX.moveTo(15, 5);
+  BUFFER_CTX.lineTo(15, -20);
+  BUFFER_CTX.lineTo(-15, -20);
+  BUFFER_CTX.lineTo(-15, 5);
+  BUFFER_CTX.fill();
+  BUFFER_CTX.stroke();
+  BUFFER_CTX.closePath();
+  BUFFER_CTX.moveTo(0, 0);
+  // B
+  BUFFER_CTX.translate(40, 0);
+  BUFFER_CTX.beginPath();
+  BUFFER_CTX.arc(0, -10, 10, Math.PI * 1.5, Math.PI * 0.5);
+  BUFFER_CTX.moveTo(0, -20);
+  BUFFER_CTX.lineTo(-15, -20);
+  BUFFER_CTX.lineTo(-15, 20);
+  BUFFER_CTX.lineTo(0, 20);
+  BUFFER_CTX.moveTo(0, 0);
+  BUFFER_CTX.arc(0, 10, 10, Math.PI * 1.5, Math.PI * 0.5);
+  BUFFER_CTX.fill();
+  BUFFER_CTX.stroke();
+  BUFFER_CTX.closePath();
+  BUFFER_CTX.moveTo(0, 0);
+  // W
+  BUFFER_CTX.translate(40, 0);
+  BUFFER_CTX.beginPath();
+  BUFFER_CTX.moveTo(0, 0);
+  BUFFER_CTX.lineTo(7.5, 20);
+  BUFFER_CTX.lineTo(22.5, -20);
+  BUFFER_CTX.lineTo(-22.5, -20);
+  BUFFER_CTX.lineTo(-7.5, 20);
+  BUFFER_CTX.lineTo(7.5, -20);
+  // BUFFER_CTX.moveTo(-10, -20);
+  // BUFFER_CTX.lineTo(10, 20);
+  BUFFER_CTX.fill();
+  BUFFER_CTX.stroke();
+  BUFFER_CTX.closePath();
+  // A
+  BUFFER_CTX.translate(35, 0);
+  BUFFER_CTX.moveTo(0, 0);
+  BUFFER_CTX.beginPath();
+  BUFFER_CTX.lineTo(0, -20);
+  BUFFER_CTX.lineTo(-15, 20);
+  BUFFER_CTX.lineTo(15, 20);
+  BUFFER_CTX.lineTo(0, -20);
+  BUFFER_CTX.fill();
+  BUFFER_CTX.stroke();
+  BUFFER_CTX.closePath();
+  // R
+  BUFFER_CTX.translate(40, 0);
+  BUFFER_CTX.beginPath();
+  BUFFER_CTX.arc(0, -10, 10, Math.PI * 1.5, Math.PI * 0.5);
+  BUFFER_CTX.moveTo(0, -20);
+  BUFFER_CTX.lineTo(-15, -20);
+  BUFFER_CTX.lineTo(-15, 20);
+  BUFFER_CTX.lineTo(10, 20);
+  BUFFER_CTX.lineTo(0, 0);
+  BUFFER_CTX.fill();
+  BUFFER_CTX.stroke();
+  BUFFER_CTX.closePath();
+  BUFFER_CTX.moveTo(0, 0);
+  // 2063
+  BUFFER_CTX.translate(-100, 70);
+  BUFFER_CTX.font = '54px Arial';
+  BUFFER_CTX.textAlign = 'center';
+  BUFFER_CTX.textBase = 'bottom';
+  BUFFER_CTX.fillText('2063', 0, 0);
+  BUFFER_CTX.strokeText('2063', 0, 0);
+  BUFFER_CTX.restore();
 };
 
 function renderCountdown() {
@@ -564,7 +659,7 @@ function renderRock() {
 };
 
 function renderTorpedoRadar({ echo }) {
-  BUFFER_CTX.rotate(echo.r / 180 * Math.PI);
+  BUFFER_CTX.rotate(echo.r / RADIAN);
   BUFFER_CTX.shadowBlur = 10;
   BUFFER_CTX.strokeStyle = hero.online ? 'rgb(220,240,150)' : 'rgb(80,100,80)';
   BUFFER_CTX.shadowColor = BUFFER_CTX.strokeStyle;
