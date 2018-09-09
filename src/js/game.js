@@ -1,14 +1,17 @@
 import { clamp, rand, choice } from './utils';
+import songs from './songs';
+import CPlayer from './player-small';
 
 const konamiCode = [38, 38, 40, 40, 37, 39, 37, 39, 66, 65];
 let konamiIndex = 0;
 
 // GAMEPLAY VARIABLES
 
-const TITLE_SCREEN = 0;
-const GAME_SCREEN = 1;
-const END_SCREEN = 2;
-let screen = TITLE_SCREEN;
+const LOADING_SCREEN = 0;
+const TITLE_SCREEN = 1;
+const GAME_SCREEN = 2;
+const END_SCREEN = 3;
+let screen = LOADING_SCREEN;
 
 let hero;
 let entities;
@@ -17,6 +20,9 @@ let looseCondition;
 let winCondition;
 let endTime;
 let nbSubSunk = 0;
+// no-op player in case the songs fail to load
+let konamiAudio = { play: () => {} };
+let musicAudio = { play: () => {} };
 
 const RADIAN = 180 / Math.PI;
 
@@ -90,6 +96,7 @@ const ALIGN_RIGHT = 2;
 
 const DASH_FRAME_DURATION = 0.1; // duration of 1 animation frame, in seconds
 let charset = '';   // alphabet sprite, filled in by build script, overwritten at runtime
+let animationTime = 0;
 
 // LOOP VARIABLES
 
@@ -376,6 +383,13 @@ function checkEndGame() {
 
 function update() {
   switch (screen) {
+    case LOADING_SCREEN:
+    case TITLE_SCREEN:
+      animationTime += elapsedTime;
+      if (animationTime > 1) {
+        animationTime -= 1;
+      }
+      break;
     case GAME_SCREEN:
       entities.forEach((entity) => {
         updateStrategy(entity);
@@ -405,6 +419,38 @@ function update() {
   }
 };
 
+// SOUND HANDLERS
+
+function loadSong(song, name) {
+  console.log(`loading ${name}...`);
+
+  const player = new CPlayer();
+  player.init(song);
+
+  let loaded = 0;
+  while (loaded < 1) {
+    loaded = player.generate();
+    console.log(`loaded ${loaded * 100}%`);
+  }
+
+  let wave = player.createWave();
+  return [
+    document.createElement('audio'),
+    URL.createObjectURL(new Blob([wave], {type:'audio/wav'})),
+  ]
+}
+
+async function initSound() {
+  let [audio, data] = loadSong(songs.konamiCode, 'secret song');
+  konamiAudio = audio;
+  konamiAudio.src = data;
+
+  [audio, data] = loadSong(songs.markSparlingSong, 'Mark Sparling\'s song');
+  musicAudio = audio;
+  musicAudio.src = data;
+  musicAudio.loop = true;
+}
+
 // RENDER HANDLERS
 
 function blit() {
@@ -421,13 +467,14 @@ function render() {
   BUFFER_CTX.fillRect(0, 0, BUFFER.width, BUFFER.height);
 
   switch (screen) {
+    case LOADING_SCREEN:
+      renderText(`loading${animationTime < 0.25 ? '' : animationTime < 0.5 ? '.' : animationTime < 0.75 ? '..' : '...'}`, BUFFER.width / 2, BUFFER.height / 2, ALIGN_CENTER);
+      break;
     case TITLE_SCREEN:
       renderGrid();
       renderTitle();
-      renderText('press any key', BUFFER.width / 2, BUFFER.height / 2, ALIGN_CENTER);
-      // TODO remove and play konami code sound instead
-      if (konamiIndex === konamiCode.length) {
-        renderText('konami mode on', BUFFER.width - CHARSET_SIZE, CHARSET_SIZE, ALIGN_RIGHT);
+      if (animationTime > 0.4) {
+        renderText('press any key', BUFFER.width / 2, BUFFER.height * 0.75, ALIGN_CENTER);
       }
       break;
     case GAME_SCREEN:
@@ -447,7 +494,7 @@ function render() {
   blit();
 };
 
-function initTileset() {
+async function initTileset() {
   TILESET.width = TILESET.height = 64;
   // cross for tactical grid
   TILESET_CTX.strokeStyle = 'rgb(40,55,50)';
@@ -754,13 +801,21 @@ function toggleLoop(value) {
 
 onload = async (e) => {
   // the real "main" of the game
-  document.title = 'Submersible Warship 2063';
+  document.title = 'SUBmersible WARship 2063';
 
   onresize();
-  initTileset();
-
+  // load charset so we can write 'loading...' on screen
   charset = await loadImg(charset);
+
   toggleLoop(true);
+
+  // TODO put this is a web worker so the loading animation loop can work
+  setTimeout(function() {
+    initTileset(),
+    initSound(),
+    musicAudio.play();
+    screen = TITLE_SCREEN;
+  }, 100);
 };
 
 onresize = onrotate = () => {
@@ -835,7 +890,10 @@ onkeyup = (e) => {
         startGame();
       } else {
         konamiIndex++;
-        // TODO play konami code sound if sequence complete
+        if (konamiIndex === konamiCode.length) {
+          // secret code complete
+          konamiAudio.play();
+        }
       }
       break;
     case GAME_SCREEN:
@@ -866,7 +924,7 @@ onkeyup = (e) => {
     case END_SCREEN:
       switch (e.code) {
         case 'KeyT':
-          open(`https://twitter.com/intent/tweet?text=I%20sunk%20${nbSubSunk||0}%20enemy%20submarines%20in%20Submersible%20Warship%202063%20by%20@herebefrogs%20for%20@js13kgames%202018%3A%20https%3A%2F%2Fgoo.gl%2FHLo6Df`, '_blank');
+          open(`https://twitter.com/intent/tweet?text=I%20sunk%20${nbSubSunk||0}%20enemy%20submarines%20in%20SUBmersible%20WARship%202063%20by%20@herebefrogs%20for%20@js13kgames%202018%3A%20https%3A%2F%2Fgoo.gl%2FHLo6Df`, '_blank');
           break;
         default:
           konamiIndex = 0;
