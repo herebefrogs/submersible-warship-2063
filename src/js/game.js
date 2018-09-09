@@ -9,10 +9,15 @@ let konamiIndex = 0;
 
 const LOADING_SCREEN = 0;
 const TITLE_SCREEN = 1;
-const GAME_SCREEN = 2;
-const END_SCREEN = 3;
+const LEVEL_SCREEN = 2;
+const GAME_SCREEN = 3;
+const END_SCREEN = 4;
 let screen = LOADING_SCREEN;
 
+let lost = false;
+let won = false;
+let currentLevel = 0;
+let levels;
 let hero;
 let entities;
 let raised = [];
@@ -106,8 +111,66 @@ let lastTime;
 let requestId;
 let running = true;
 
+// onresize() must have been called first as this relies on BUFFER.width/height
+function initLevels() {
+  levels = [
+    // #2
+    {
+      description: 'enemy mine drifted into our perimeter. destroy it.',
+      looseCondition: [], // no extra entity than the hero, automatically added
+      otherEntities: [
+        // createEntity('rock', {
+        //   collision: new Collision(true, false),
+        //   position: new Position(BUFFER.width - 200, 200),
+        //   velocity: new Velocity(0),
+        //   sprite: new Sprite(true, renderRock),
+        // }),
+      ],
+      winCondition: [
+        ['sub1', 100, 100],
+        ['sub1', 100, BUFFER.height - 100],
+      ],
+    },
+    // #2
+    {
+      description: 'enemy subs entered our perimeter. sink them all.',
+      looseCondition: [], // no extra entity than the hero, automatically added
+      otherEntities: [
+        // createEntity('rock', {
+        //   collision: new Collision(true, false),
+        //   position: new Position(BUFFER.width - 200, 200),
+        //   velocity: new Velocity(0),
+        //   sprite: new Sprite(true, renderRock),
+        // }),
+      ],
+      winCondition: [
+        ['sub1', 100, 100],
+        ['sub1', 100, BUFFER.height - 100],
+        ['sub1', BUFFER.width - 100, 100],
+        ['sub1', BUFFER.width - 100, BUFFER.height - 100],
+      ],
+    }
+  ];
+};
+
 // GAMEPLAY HANDLERS
 
+function hydrate([ type, x, y ]) {
+  switch (type) {
+    case 'sub1':
+      return createEntity(type, {
+        collision: new Collision(true, true, true),
+        input: new Input(),
+        position: new Position(x, y),
+        velocity: new Velocity(20),
+        strategy: new Strategy('random'),
+        sprite: new Sprite(false, renderEnemySub, renderEnemyRadar, () => renderDebris('rgb(230,90,100)')),
+      });
+      break;
+  }
+}
+
+// really start level
 function startGame() {
   endTime = 0;
   hero = createEntity('player', {
@@ -117,53 +180,27 @@ function startGame() {
     velocity: new Velocity(40),
     sprite: new Sprite(true, renderPlayerSub, renderPlayerRadar, () => renderDebris('rgb(75,190,250)')),
   });
-  looseCondition = [hero];
-  winCondition = [
-    createEntity('sub1', {
-      collision: new Collision(true, true, true),
-      input: new Input(),
-      position: new Position(100, 100),
-      velocity: new Velocity(20),
-      strategy: new Strategy('random'),
-      sprite: new Sprite(false, renderEnemySub, renderEnemyRadar, () => renderDebris('rgb(230,90,100)')),
-    }),
-    createEntity('sub1', {
-      collision: new Collision(true, true, true),
-      input: new Input(),
-      position: new Position(100, BUFFER.height - 100),
-      velocity: new Velocity(20),
-      strategy: new Strategy('random'),
-      sprite: new Sprite(false, renderEnemySub, renderEnemyRadar, () => renderDebris('rgb(230,90,100)')),
-    }),
-    createEntity('sub1', {
-      collision: new Collision(true, true, true),
-      input: new Input(),
-      position: new Position(BUFFER.width - 100, 100),
-      velocity: new Velocity(20),
-      strategy: new Strategy('random'),
-      sprite: new Sprite(false, renderEnemySub, renderEnemyRadar, () => renderDebris('rgb(230,90,100)')),
-    }),
-    createEntity('sub1', {
-      collision: new Collision(true, true, true),
-      input: new Input(),
-      position: new Position(BUFFER.width - 100, BUFFER.height - 100),
-      velocity: new Velocity(20),
-      strategy: new Strategy('random'),
-      sprite: new Sprite(false, renderEnemySub, renderEnemyRadar, () => renderDebris('rgb(230,90,100)')),
-    }),
-  ];
+
+  const level = levels[currentLevel];
+  looseCondition = [...level.looseCondition.map(hydrate), hero];
+  winCondition = level.winCondition.map(hydrate);
   entities = [
-    // createEntity('rock', {
-      //   collision: new Collision(true, false),
-      //   position: new Position(BUFFER.width - 200, 200),
-      //   velocity: new Velocity(0),
-    //   sprite: new Sprite(true, renderRock),
-    // }),
+    ...level.otherEntities.map(hydrate),
     ...looseCondition,
     ...winCondition,
   ];
   screen = GAME_SCREEN;
 };
+
+function restartGame() {
+  won = lost = false;
+  if (currentLevel >= levels.length) {
+    konamiIndex = 0;
+    screen = TITLE_SCREEN;
+  } else {
+    screen = LEVEL_SCREEN;
+  }
+}
 
 function createEntity(type, components) {
   return {
@@ -372,24 +409,23 @@ function applyElapsedTimeToTtl(entity) {
 };
 
 function checkEndGame() {
-  if (looseCondition.length === looseCondition.filter(({ dead }) => dead).length
-    || winCondition.length === winCondition.filter(({ dead }) => dead).length) {
-      endTime += elapsedTime;
+  if (lost || won) {
+    endTime += elapsedTime;
+  } else {
+    lost = looseCondition.length === looseCondition.filter(({ dead }) => dead).length;
+    won = winCondition.length === winCondition.filter(({ dead }) => dead).length;
   }
+
   if (endTime > 4) {
+    if (won) {
+      currentLevel += 1;
+    }
     screen = END_SCREEN;
   }
 };
 
 function update() {
   switch (screen) {
-    case LOADING_SCREEN:
-    case TITLE_SCREEN:
-      animationTime += elapsedTime;
-      if (animationTime > 1) {
-        animationTime -= 1;
-      }
-      break;
     case GAME_SCREEN:
       entities.forEach((entity) => {
         updateStrategy(entity);
@@ -474,7 +510,14 @@ function render() {
       renderGrid();
       renderTitle();
       if (animationTime > 0.4) {
-        renderText('press any key', BUFFER.width / 2, BUFFER.height * 0.75, ALIGN_CENTER);
+        renderText('press any key to start', BUFFER.width / 2, BUFFER.height * 0.75, ALIGN_CENTER);
+      }
+      break;
+      case LEVEL_SCREEN:
+      renderText(`mission #0${currentLevel+1}`, BUFFER.width / 2, BUFFER.height / 2, ALIGN_CENTER);
+      renderText(levels[currentLevel].description, BUFFER.width / 2, BUFFER.height / 2 + 2*CHARSET_SIZE, ALIGN_CENTER);
+      if (animationTime > 0.4) {
+        renderText('press any key to start mission', BUFFER.width / 2, BUFFER.height * 0.75, ALIGN_CENTER);
       }
       break;
     case GAME_SCREEN:
@@ -486,8 +529,22 @@ function render() {
       renderText(`sonar: ${hero.online ? 'on' : 'off'}line`, CHARSET_SIZE, CHARSET_SIZE);
       break;
     case END_SCREEN:
-      renderText('game over', CHARSET_SIZE, CHARSET_SIZE);
-      renderText(`you ${winCondition.length === winCondition.filter(({ dead }) => dead).length ? 'won' : 'lost'}`, BUFFER.width / 2, BUFFER.height / 2, ALIGN_CENTER)
+      if (currentLevel >= levels.length) {
+        renderText('you finished submersible warship 2063', BUFFER.width / 2, BUFFER.height / 2, ALIGN_CENTER);
+        renderText('thank you for playing!', BUFFER.width / 2, BUFFER.height / 2 + 2*CHARSET_SIZE, ALIGN_CENTER);
+        renderText('press t to tweet your score', BUFFER.width / 2, BUFFER.height * 0.75, ALIGN_CENTER);
+      } else if (won) {
+        // by this time currentLevel has already been increased by 1
+        renderText(`mission 0${currentLevel} completed!`, BUFFER.width / 2, BUFFER.height / 2, ALIGN_CENTER);
+        if (animationTime > 0.4) {
+          renderText('press any key to start next mission', BUFFER.width / 2, BUFFER.height * 0.75, ALIGN_CENTER);
+        }
+      } else {
+        renderText('you died!', BUFFER.width / 2, BUFFER.height / 2, ALIGN_CENTER);
+        if (animationTime > 0.4) {
+          renderText('press any key to try again', BUFFER.width / 2, BUFFER.height * 0.75, ALIGN_CENTER);
+        }
+      }
       break;
   }
 
@@ -782,6 +839,10 @@ function loop() {
     render();
     currentTime = Date.now();
     elapsedTime = (currentTime - lastTime) / 1000;
+    animationTime += elapsedTime;
+    if (animationTime > 1) {
+      animationTime -= 1;
+    }
     update();
     lastTime = currentTime;
   }
@@ -812,7 +873,10 @@ onload = async (e) => {
   // TODO put this is a web worker so the loading animation loop can work
   setTimeout(function() {
     initTileset(),
+    initLevels();
     initSound(),
+    // TODO potential DOMException because player hasn't clicked on anything yet
+    // should ask to press any key when loading is done, then play track
     musicAudio.play();
     screen = TITLE_SCREEN;
   }, 100);
@@ -887,7 +951,7 @@ onkeyup = (e) => {
   switch (screen) {
     case TITLE_SCREEN:
       if (e.which !== konamiCode[konamiIndex] || konamiIndex === konamiCode.length) {
-        startGame();
+        screen = LEVEL_SCREEN;
       } else {
         konamiIndex++;
         if (konamiIndex === konamiCode.length) {
@@ -895,6 +959,9 @@ onkeyup = (e) => {
           konamiAudio.play();
         }
       }
+      break;
+    case LEVEL_SCREEN:
+      startGame();
       break;
     case GAME_SCREEN:
       switch (e.code) {
@@ -927,8 +994,7 @@ onkeyup = (e) => {
           open(`https://twitter.com/intent/tweet?text=I%20sunk%20${nbSubSunk||0}%20enemy%20submarines%20in%20SUBmersible%20WARship%202063%20by%20@herebefrogs%20for%20@js13kgames%202018%3A%20https%3A%2F%2Fgoo.gl%2FHLo6Df`, '_blank');
           break;
         default:
-          konamiIndex = 0;
-          screen = TITLE_SCREEN;
+          restartGame();
           break;
       }
       break;
@@ -970,6 +1036,9 @@ ontouchend = onpointerup = (e) => {
   e.preventDefault();
   switch (screen) {
     case TITLE_SCREEN:
+      screen = LEVEL_SCREEN;
+      break;
+    case LEVEL_SCREEN:
       startGame();
       break;
     case GAME_SCREEN:
@@ -979,8 +1048,7 @@ ontouchend = onpointerup = (e) => {
       minX = minY = maxX = maxY = 0;
       break;
     case END_SCREEN:
-      konamiIndex = 0;
-      screen = TITLE_SCREEN;
+      restartGame();
       break;
   }
 };
