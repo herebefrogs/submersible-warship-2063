@@ -2,14 +2,12 @@
 gameplay
 ========
 - offline mode with Service Worker
-- some levels/missions (kill all, kill vip, protect vip)
-- add # to alphabet bitmap
-- web worker to load sound without blocking main loop
-- mine entity and attack for tutorial level
-- some AI for enemies subs (attach player, evade torpedoes, follow a path)
-- detail controls + acknowledge Mark Sparling/Florent Cailhol on title screen
+- MONDAY mine entity and attack for tutorial level
+- TUESDAY some AI for enemies subs (attach player, evade torpedoes, follow a path)
+- WED add # to alphabet bitmap
+- WED web worker to load sound without blocking main loop
+- WED detail controls + acknowledge Mark Sparling/Florent Cailhol on title screen
 - always centered on player + lerp (have grid move)
-- some rock formations (collide, indestructible)
 - add parallax to rock formation to suggest 3D
 - enemy submarines that also go offline
 - firing in offline mode should reveal position temporarily

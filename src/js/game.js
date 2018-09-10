@@ -29,6 +29,9 @@ let nbSubSunk = 0;
 let konamiAudio = { play: () => {} };
 let musicAudio = { play: () => {} };
 
+const FRIEND_GROUP = 1;
+const ENEMY_GROUP = 2;
+
 const RADIAN = 180 / Math.PI;
 
 // COMPONENTS
@@ -40,11 +43,11 @@ function Input() {
   this.down = 0;
 }
 
-function Strategy(type, target) {
+function Strategy(type, nextChange) {
   this.type = type;
-  this.target = target;
+  this.target = undefined;
   // TODO remove when 'random' isn't a thing anymore
-  this.nextChange = 0.5;
+  this.nextChange = nextChange || 0.5;
   this.remaining = 0;
 }
 
@@ -61,10 +64,11 @@ function Position(x, y, r = 0) {
   this.r = r;
 }
 
-function Collision(collide, killable, foe) {
+function Collision(collide, killable, radius, group) {
   this.collide = collide;
   this.killable = killable;
-  this.foe = foe; // boolean indicating if the entity is a friend or a foe, so torpedoes can lock on the right kind of entity
+  this.radius = radius;
+  this.group = group; // integer indicating if the entity is a friend or a group, so torpedoes can lock on the right kind of entity
 }
 
 function Ttl(time) {
@@ -116,33 +120,29 @@ function initLevels() {
   levels = [
     // #2
     {
-      description: 'enemy mine drifted into our perimeter. destroy it.',
-      looseCondition: [], // no extra entity than the hero, automatically added
+      mission: [
+        'enemy mine drifted into perimeter. destroy it.',
+        'turn off sonar to evade locked torpedos.'
+      ],
+      looseCondition: [
+        ['player', BUFFER.width * 2 / 3, BUFFER.height * 2 / 3],
+      ],
       otherEntities: [
-        // createEntity('rock', {
-        //   collision: new Collision(true, false),
-        //   position: new Position(BUFFER.width - 200, 200),
-        //   velocity: new Velocity(0),
-        //   sprite: new Sprite(true, renderRock),
-        // }),
+        ['rock', BUFFER.width / 2, BUFFER.height / 2]
       ],
       winCondition: [
-        ['sub1', 100, 100],
-        ['sub1', 100, BUFFER.height - 100],
+        ['mine', BUFFER.width / 3, BUFFER.height / 3],
       ],
     },
     // #2
     {
-      description: 'enemy subs entered our perimeter. sink them all.',
-      looseCondition: [], // no extra entity than the hero, automatically added
-      otherEntities: [
-        // createEntity('rock', {
-        //   collision: new Collision(true, false),
-        //   position: new Position(BUFFER.width - 200, 200),
-        //   velocity: new Velocity(0),
-        //   sprite: new Sprite(true, renderRock),
-        // }),
+      mission: [
+        'enemy subs entered perimeter. sink them all.',
       ],
+       looseCondition: [
+        ['player', BUFFER.width / 2, BUFFER.height / 2],
+      ],
+      otherEntities: [ ],
       winCondition: [
         ['sub1', 100, 100],
         ['sub1', 100, BUFFER.height - 100],
@@ -157,38 +157,56 @@ function initLevels() {
 
 function hydrate([ type, x, y ]) {
   switch (type) {
+    case 'player':
+      return createEntity(type, {
+        collision: new Collision(true, konamiIndex !== konamiCode.length, 7, FRIEND_GROUP),
+        input: new Input(),
+        position: new Position(x, y),
+        velocity: new Velocity(40),
+        sprite: new Sprite(true, renderPlayerSub, renderPlayerRadar, () => renderDebris('rgb(75,190,250)')),
+      });;
     case 'sub1':
       return createEntity(type, {
-        collision: new Collision(true, true, true),
+        collision: new Collision(true, true, 7, ENEMY_GROUP),
         input: new Input(),
         position: new Position(x, y),
         velocity: new Velocity(20),
         strategy: new Strategy('random'),
-        sprite: new Sprite(false, renderEnemySub, renderEnemyRadar, () => renderDebris('rgb(230,90,100)')),
+        sprite: new Sprite(false, renderEnemySub, renderEnemySubRadar, () => renderDebris('rgb(230,90,100)')),
       });
-      break;
+    case 'mine':
+      return createEntity(type, {
+        collision: new Collision(true, true, 9, ENEMY_GROUP),
+        position: new Position(x, y),
+        velocity: new Velocity(0),
+        strategy: new Strategy('guard', 5),
+        sprite: new Sprite(false, renderEnemyMine, renderEnemyMineRadar, () => renderDebris('rgb(230,90,100)')),
+      });
+    case 'rock':
+      return createEntity(type, {
+        collision: new Collision(true, false, 55),
+        position: new Position(x, y),
+        velocity: new Velocity(0),
+        sprite: new Sprite(true, renderRock),
+      });
   }
 }
 
 // really start level
 function startGame() {
   endTime = 0;
-  hero = createEntity('player', {
-    collision: new Collision(true, konamiIndex !== konamiCode.length, false),
-    input: new Input(),
-    position: new Position(200, BUFFER.height - 200),
-    velocity: new Velocity(40),
-    sprite: new Sprite(true, renderPlayerSub, renderPlayerRadar, () => renderDebris('rgb(75,190,250)')),
-  });
 
   const level = levels[currentLevel];
-  looseCondition = [...level.looseCondition.map(hydrate), hero];
+  looseCondition = [...level.looseCondition.map(hydrate)];
+  // hero is always the 1st loose condition
+  hero = looseCondition[0];
   winCondition = level.winCondition.map(hydrate);
   entities = [
     ...level.otherEntities.map(hydrate),
     ...looseCondition,
     ...winCondition,
   ];
+
   screen = GAME_SCREEN;
 };
 
@@ -207,7 +225,6 @@ function createEntity(type, components) {
     ...components,
     echo: { ...components.position },
     online: true,
-    radius: 6,
     type,
   };
 };
@@ -232,20 +249,19 @@ function testCircleCollision(entity1, entity2) {
   return (
     collision1.collide
     && collision2.collide
-    && inRange(position1, position2, entity1.radius + entity2.radius)
+    && inRange(position1, position2, collision1.radius + collision2.radius)
   );
 };
 
 function constrainToViewport(entity) {
-  const { position } = entity;
-  position.x = clamp(position.x, 0, BUFFER.width - entity.radius)
-  position.y = clamp(position.y, 0, BUFFER.height - entity.radius)
+  const { position, collision } = entity;
+  position.x = clamp(position.x, 0, BUFFER.width - collision.radius)
+  position.y = clamp(position.y, 0, BUFFER.height - collision.radius)
 };
 
-function fireTorpedo({ position: subPos }, target) {
-  const strategy = new Strategy(target ? 'lockon' : 'cruise');
-  const input = target ? new Input() : null;
-  const collision = new Collision(true, true, !!target);
+function fireTorpedo({ position: subPos }, group) {
+  const strategy = new Strategy('cruise');
+  const collision = new Collision(true, true, 5, group);
   const sprite = new Sprite(false, renderTorpedo, renderTorpedoRadar, () => renderDebris('rgb(220,240,150)'));
   const ttl = new Ttl(30);
   // send torpedo in same direction as sub is moving/facing
@@ -258,7 +274,7 @@ function fireTorpedo({ position: subPos }, target) {
 
   const position = new Position(x, y, subPos.r);
   const velocity = new Velocity(60, dx, dy);
-  raised.push(createEntity('torpedo', { collision, input, position, sprite, strategy, ttl, velocity }));
+  raised.push(createEntity('torpedo', { collision, position, sprite, strategy, ttl, velocity }));
 };
 
 function collideEntity(entity) {
@@ -289,15 +305,33 @@ function collideEntity(entity) {
 };
 
 function updateStrategy(entity) {
-  const { strategy, position, collision: { foe } } = entity;
+  const { strategy, position, collision: { group } } = entity;
   if (strategy) {
     switch (strategy.type) {
+      case 'guard':
+        // mines can only fire on enemy entities
+        entities.filter(({ collision }) => !!collision.group && collision.group !== group).forEach(function(enemy) {
+          const { echo } = enemy;
+          // TODO 250 same as radar size, should come from a prop
+          if (enemy.online && inRange(position, echo, 250) && strategy.readyToFire)  {
+            position.r = angleDifference(entity, enemy) + 90;
+            strategy.readyToFire = false;
+            strategy.remaining = strategy.nextChange;
+            fireTorpedo(entity, group);
+            position.r = 0;
+          }
+          // FIXME remaining never gets to 0, because resetted in applyStrategyToInput...
+          if (strategy.remaining < 0.1) {
+            strategy.readyToFire = true;
+          }
+        });
+       break;
       case 'lockon':
         const { echo, online, dead } = strategy.target;
-        // if target has been already destroyed, or has gone offline and torpedo within 10px of last known position
+        // if target has been already destroyed, or has gone offline...
         // TODO 10px should be in a constant of some kind
-        if (dead || (!online && inRange(position, echo, 10))) {
-          // switch back to moving in a straight line
+        if (dead || !online) {
+          // ...switch back to moving in a straight line
           entity.strategy = {
             ...strategy,
             type: 'cruise',
@@ -311,7 +345,7 @@ function updateStrategy(entity) {
         break;
       case 'cruise':
         // torpedoes can only lock on enemy entities
-        entities.filter(({ collision }) => !!collision.foe && collision.foe !== foe).forEach(function(enemy) {
+        entities.filter(({ collision }) => !!collision.group && collision.group !== group).forEach(function(enemy) {
           const { echo } = enemy;
           // TODO 180 works for torpedos right now, but might need to change when applied to enemy sub range
           if (inRange(position, echo, 180) && Math.abs(angleDifference(entity, enemy)) < 22.5) { // 22.5deg = Math.PI/8
@@ -335,6 +369,10 @@ function updateStrategy(entity) {
 function angleDifference({ position, velocity }, { echo }) {
   return angleDifference2DVectors({ x: velocity.dx, y: velocity.dy }, { x: echo.x - position.x, y: echo.y - position.y })
 };
+
+function angleTo({ x, y }) {
+  return Math.atan2(y, x) * RADIAN;
+}
 
 // between 2 vectors, in degree and in range [-180, 180]
 function angleDifference2DVectors({ x: x1, y: y1 }, { x: x2, y: y2}) {
@@ -390,7 +428,7 @@ function applyVelocityToPosition({ velocity, position }) {
 };
 
 function applyPositionToEcho({ position, echo, sprite, online }) {
-  if (sprite.alwaysRender || hero.online && online) {
+  if (hero.online && online) {
     echo.x = position.x;
     echo.y = position.y;
     echo.r = position.r;
@@ -514,8 +552,10 @@ function render() {
       }
       break;
       case LEVEL_SCREEN:
-      renderText(`mission #0${currentLevel+1}`, BUFFER.width / 2, BUFFER.height / 2, ALIGN_CENTER);
-      renderText(levels[currentLevel].description, BUFFER.width / 2, BUFFER.height / 2 + 2*CHARSET_SIZE, ALIGN_CENTER);
+      renderText(`mission #0${currentLevel+1}`, BUFFER.width / 2, BUFFER.height / 2 - 2*CHARSET_SIZE, ALIGN_CENTER);
+      levels[currentLevel].mission.forEach((instruction, i) => {
+        renderText(instruction, BUFFER.width / 2, BUFFER.height / 2 + i*2*CHARSET_SIZE, ALIGN_CENTER);
+      });
       if (animationTime > 0.4) {
         renderText('press any key to start mission', BUFFER.width / 2, BUFFER.height * 0.75, ALIGN_CENTER);
       }
@@ -672,11 +712,17 @@ function renderGrid() {
   BUFFER_CTX.fillRect(0, 0, BUFFER.width, BUFFER.height);
 };
 
-function renderEntity({ echo, sprite }) {
+function getRenderPosition(position, echo, alwaysRender) {
+  return alwaysRender ? position : echo;
+}
+
+function renderEntity({ position, echo, sprite }) {
+  const pos = getRenderPosition(position, echo, sprite.alwaysRender);
+
   BUFFER_CTX.save();
 
-  BUFFER_CTX.translate(Math.round(echo.x), Math.round(echo.y));
-  BUFFER_CTX.rotate(echo.r / RADIAN);
+  BUFFER_CTX.translate(Math.round(pos.x), Math.round(pos.y));
+  BUFFER_CTX.rotate(pos.r / RADIAN);
 
   sprite.renderer();
 
@@ -688,8 +734,8 @@ function renderPlayerSub() {
   BUFFER_CTX.fillStyle = 'rgb(75,190,250)';
   BUFFER_CTX.shadowColor = BUFFER_CTX.fillStyle;
   BUFFER_CTX.beginPath();
-  BUFFER_CTX.arc(0, 0, 5, 0, Math.PI*2);
-  BUFFER_CTX.fillRect(-2, -12, 4, 12);
+  BUFFER_CTX.arc(0, 2, 5, 0, Math.PI*2);
+  BUFFER_CTX.fillRect(-2, -10, 4, 12);
   BUFFER_CTX.fill();
   BUFFER_CTX.closePath();
 };
@@ -714,9 +760,23 @@ function renderEnemySub() {
   BUFFER_CTX.shadowBlur = 10;
   BUFFER_CTX.fillStyle = hero.online ? 'rgb(230,90,100)' : 'rgb(55,40,35)';
   BUFFER_CTX.shadowColor = BUFFER_CTX.fillStyle;
-  BUFFER_CTX.fillRect(-5, -5, 10, 10);
-  BUFFER_CTX.fillRect(-2, -12, 4, 12);
+  BUFFER_CTX.fillRect(-5, -3, 10, 10);
+  BUFFER_CTX.fillRect(-2, -10, 4, 12);
   BUFFER_CTX.fill();
+  BUFFER_CTX.closePath();
+};
+
+function renderEnemyMine() {
+  BUFFER_CTX.lineWidth = 3;
+  BUFFER_CTX.shadowBlur = 10;
+  BUFFER_CTX.fillStyle = BUFFER_CTX.strokeStyle = hero.online ? 'rgb(230,90,100)' : 'rgb(55,40,35)';
+  BUFFER_CTX.shadowColor = BUFFER_CTX.fillStyle;
+  BUFFER_CTX.beginPath();
+  BUFFER_CTX.arc(0, 0, 4, 0, 2*Math.PI);
+  BUFFER_CTX.fill();
+  BUFFER_CTX.setLineDash([2, 4]);
+  BUFFER_CTX.arc(0, 0, 6, 0, 2*Math.PI);
+  BUFFER_CTX.stroke();
   BUFFER_CTX.closePath();
 };
 
@@ -732,11 +792,34 @@ function renderDebris(color) {
   BUFFER_CTX.closePath();
 };
 
+function renderRock() {
+  BUFFER_CTX.shadowBlur = 10;
+  BUFFER_CTX.strokeStyle = 'rgb(70,105,105)';
+  BUFFER_CTX.shadowColor = BUFFER_CTX.strokeStyle;
+  BUFFER_CTX.fillStyle = 'rgba(30,60,60,0.5)';
+  BUFFER_CTX.beginPath();
+  BUFFER_CTX.moveTo(0, -55);
+  BUFFER_CTX.lineTo(-38, -42);
+  BUFFER_CTX.lineTo(-52, 0);
+  BUFFER_CTX.lineTo(-41, 46);
+  BUFFER_CTX.lineTo(-2, 43);
+  BUFFER_CTX.lineTo(50, 52);
+  BUFFER_CTX.lineTo(52, 0);
+  BUFFER_CTX.lineTo(45, -47);
+  BUFFER_CTX.closePath();
+  BUFFER_CTX.fill();
+  BUFFER_CTX.stroke();
+};
+
+// FIXME need a getPosition that returns either echo or position based on value of sprite.alwaysRender
+// to be used in renderRadar/renderEntity and their derivative... make that a new component...
 function renderRadar(entity) {
-  const { echo, sprite } = entity;
+  const { position, echo, sprite } = entity;
   if (sprite.radarRenderer) {
+    const pos = getRenderPosition(position, echo, sprite.alwaysRender);
+
     BUFFER_CTX.save();
-    BUFFER_CTX.translate(Math.round(echo.x), Math.round(echo.y));
+    BUFFER_CTX.translate(Math.round(pos.x), Math.round(pos.y));
 
     sprite.radarRenderer(entity);
 
@@ -744,26 +827,10 @@ function renderRadar(entity) {
   }
 };
 
-function renderRock() {
-  BUFFER_CTX.shadowBlur = 10;
-  BUFFER_CTX.strokeStyle = 'rgb(70,105,105)';
-  BUFFER_CTX.shadowColor = BUFFER_CTX.strokeStyle;
-  BUFFER_CTX.fillStyle = 'rgba(30,60,60,0.5)';
-  BUFFER_CTX.beginPath();
-  BUFFER_CTX.moveTo(-100, -50);
-  BUFFER_CTX.lineTo(-50, -40);
-  BUFFER_CTX.lineTo(20, -45);
-  BUFFER_CTX.lineTo(30, -25);
-  BUFFER_CTX.lineTo(20, 10);
-  BUFFER_CTX.lineTo(-10, 25);
-  BUFFER_CTX.lineTo(-85, -15);
-  BUFFER_CTX.closePath();
-  BUFFER_CTX.fill();
-  BUFFER_CTX.stroke();
-};
+function renderTorpedoRadar({ position, echo, sprite }) {
+  const pos = getRenderPosition(position, echo, sprite.alwaysRender);
 
-function renderTorpedoRadar({ echo }) {
-  BUFFER_CTX.rotate(echo.r / RADIAN);
+  BUFFER_CTX.rotate(pos.r / RADIAN);
   BUFFER_CTX.shadowBlur = 10;
   BUFFER_CTX.strokeStyle = hero.online ? 'rgb(220,240,150)' : 'rgb(80,100,80)';
   BUFFER_CTX.shadowColor = BUFFER_CTX.strokeStyle;
@@ -802,13 +869,24 @@ function renderPlayerRadar(entity) {
   }
 };
 
-function renderEnemyRadar() {
+function renderEnemySubRadar() {
   // radar
   BUFFER_CTX.shadowBlur = 10;
   BUFFER_CTX.strokeStyle = 'rgb(55,40,35)';
   BUFFER_CTX.shadowColor = BUFFER_CTX.strokeStyle;
   BUFFER_CTX.beginPath();
   BUFFER_CTX.arc(0, 0, 80, 0, Math.PI*2);
+  BUFFER_CTX.stroke();
+  BUFFER_CTX.closePath();
+};
+
+function renderEnemyMineRadar() {
+  // radar
+  BUFFER_CTX.shadowBlur = 10;
+  BUFFER_CTX.strokeStyle = 'rgb(55,40,35)';
+  BUFFER_CTX.shadowColor = BUFFER_CTX.strokeStyle;
+  BUFFER_CTX.beginPath();
+  BUFFER_CTX.arc(0, 0, 250, 0, Math.PI*2);
   BUFFER_CTX.stroke();
   BUFFER_CTX.closePath();
 };
@@ -934,7 +1012,7 @@ onkeydown = (e) => {
             break;
           case 'Space':
             if (!hero.dead) {
-              fireTorpedo(hero);
+              fireTorpedo(hero, hero.collision.group);
             }
             break;
           case 'KeyP':
