@@ -4,7 +4,6 @@ gameplay
 - offline mode with Service Worker
 - TUESDAY some AI for enemies subs (attach player, evade torpedoes, follow a path)
 - always centered on player + lerp (have grid move)
-- WED detail controls + acknowledge Mark Sparling/Florent Cailhol on title screen
 - WED add # to alphabet bitmap
 - WED web worker to load sound without blocking main loop
 - add parallax to rock formation to suggest 3D

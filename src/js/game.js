@@ -569,9 +569,15 @@ function render() {
       break;
     case TITLE_SCREEN:
       renderGrid();
+      renderText('js13kgames 2018', BUFFER.width / 2, 2*CHARSET_SIZE, ALIGN_CENTER);
       renderTitle();
+      renderText('move: arrows/wasd', 2*CHARSET_SIZE, BUFFER.height / 2 - 2*CHARSET_SIZE, ALIGN_LEFT);
+      renderText('torpedo: space', 2*CHARSET_SIZE, BUFFER.height / 2, ALIGN_LEFT);
+      renderText('sonar: f/o', 2*CHARSET_SIZE, BUFFER.height / 2 + 2*CHARSET_SIZE, ALIGN_LEFT);
+      renderText('game: jerome lecomte', BUFFER.width - 2*CHARSET_SIZE, BUFFER.height / 2 - CHARSET_SIZE, ALIGN_RIGHT);
+      renderText('music: mark sparling', BUFFER.width - 2*CHARSET_SIZE, BUFFER.height / 2 + CHARSET_SIZE, ALIGN_RIGHT);
       if (animationTime > 0.4) {
-        renderText('press any key to start', BUFFER.width / 2, BUFFER.height * 0.75, ALIGN_CENTER);
+        renderText('press any key to start', BUFFER.width / 2, BUFFER.height - 3*CHARSET_SIZE, ALIGN_CENTER);
       }
       break;
       case LEVEL_SCREEN:
@@ -580,7 +586,7 @@ function render() {
         renderText(instruction, BUFFER.width / 2, BUFFER.height / 2 + i*2*CHARSET_SIZE, ALIGN_CENTER);
       });
       if (animationTime > 0.4) {
-        renderText('press any key to start mission', BUFFER.width / 2, BUFFER.height * 0.75, ALIGN_CENTER);
+        renderText('press any key to start mission', BUFFER.width / 2, BUFFER.height - 3*CHARSET_SIZE, ALIGN_CENTER);
       }
       break;
     case GAME_SCREEN:
@@ -593,19 +599,20 @@ function render() {
       break;
     case END_SCREEN:
       if (currentLevel >= levels.length) {
-        renderText('you finished submersible warship 2063', BUFFER.width / 2, BUFFER.height / 2, ALIGN_CENTER);
-        renderText('thank you for playing!', BUFFER.width / 2, BUFFER.height / 2 + 2*CHARSET_SIZE, ALIGN_CENTER);
+        renderTitle();
+        renderText('you finished submersible warship 2063', BUFFER.width / 2, BUFFER.height * 0.25 + 2*CHARSET_SIZE, ALIGN_CENTER);
+        renderText('thank you for playing!', BUFFER.width / 2, BUFFER.height * 0.25 + 4*CHARSET_SIZE, ALIGN_CENTER);
         renderText('press t to tweet your score', BUFFER.width / 2, BUFFER.height * 0.75, ALIGN_CENTER);
       } else if (won) {
         // by this time currentLevel has already been increased by 1
         renderText(`mission 0${currentLevel} completed!`, BUFFER.width / 2, BUFFER.height / 2, ALIGN_CENTER);
         if (animationTime > 0.4) {
-          renderText('press any key to start next mission', BUFFER.width / 2, BUFFER.height * 0.75, ALIGN_CENTER);
+          renderText('press any key to start next mission', BUFFER.width / 2, BUFFER.height - 3*CHARSET_SIZE, ALIGN_CENTER);
         }
       } else {
         renderText('you died!', BUFFER.width / 2, BUFFER.height / 2, ALIGN_CENTER);
         if (animationTime > 0.4) {
-          renderText('press any key to try again', BUFFER.width / 2, BUFFER.height * 0.75, ALIGN_CENTER);
+          renderText('press any key to try again', BUFFER.width / 2, BUFFER.height - 3*CHARSET_SIZE, ALIGN_CENTER);
         }
       }
       break;
@@ -637,7 +644,7 @@ function renderTitle() {
   BUFFER_CTX.shadowColor = BUFFER_CTX.strokeStyle;
   BUFFER_CTX.fillStyle = 'rgba(30,60,60,0.5)';
   // S
-  BUFFER_CTX.translate(BUFFER.width / 2 - 100, 100);
+  BUFFER_CTX.translate(BUFFER.width / 2 - 100, BUFFER.height / 2);
   BUFFER_CTX.save();
   BUFFER_CTX.scale(0.8, 0.8);
   BUFFER_CTX.rotate(35 / RADIAN);
