@@ -304,30 +304,13 @@ function collideEntity(entity) {
   }
 };
 
-function updateStrategy(entity) {
+// does the current strategy still make sense or should it change to something else?
+function refreshStrategy(entity) {
   const { strategy, position, collision: { group } } = entity;
   if (strategy) {
     switch (strategy.type) {
-      case 'guard':
-        // mines can only fire on enemy entities
-        entities.filter(({ collision }) => !!collision.group && collision.group !== group).forEach(function(enemy) {
-          const { echo } = enemy;
-          // TODO 250 same as radar size, should come from a prop
-          if (enemy.online && inRange(position, echo, 250) && strategy.readyToFire)  {
-            position.r = angleDifference(entity, enemy) + 90;
-            strategy.readyToFire = false;
-            strategy.remaining = strategy.nextChange;
-            fireTorpedo(entity, group);
-            position.r = 0;
-          }
-          // FIXME remaining never gets to 0, because resetted in applyStrategyToInput...
-          if (strategy.remaining < 0.1) {
-            strategy.readyToFire = true;
-          }
-        });
-       break;
       case 'lockon':
-        const { echo, online, dead } = strategy.target;
+        const { online, dead } = strategy.target;
         // if target has been already destroyed, or has gone offline...
         // TODO 10px should be in a constant of some kind
         if (dead || !online) {
@@ -379,12 +362,17 @@ function angleDifference2DVectors({ x: x1, y: y1 }, { x: x2, y: y2}) {
   return (((Math.atan2(y2, x2) - Math.atan2(y1, x1)) * RADIAN + 180) % 360) - 180;
 };
 
-function applyStrategyToInput(entity) {
-  const { input, strategy } = entity
+// change direction, fire a torpedo or whatever
+function applyStrategy(entity) {
+  const { input, strategy, position, collision: { group } } = entity
   if (strategy) {
     strategy.remaining -= elapsedTime;
     if (strategy.remaining < 0) {
       strategy.remaining += strategy.nextChange;
+      strategy.apply = true;
+    }
+
+    if (strategy.apply) {
       switch (strategy.type) {
         case 'lockon':
           const angle = angleDifference(entity, strategy.target);
@@ -392,12 +380,28 @@ function applyStrategyToInput(entity) {
           input.right = angle > 5 ? 1 : 0;
           input.up = -1;
           input.down = 0;
+          strategy.apply = false;
           break;
-      case 'random':
+        case 'random':
           input.up = choice([-1, 0]);
           input.left = choice([-1, 0]);
           input.right = choice([1, 0]);
           input.down = choice([1, 0]);
+          strategy.apply = false;
+          break;
+        case 'guard':
+          // mines can only fire on enemy entities
+          entities.filter(({ collision }) => !!collision.group && collision.group !== group).forEach(function(enemy) {
+            const { echo } = enemy;
+            // TODO 250 same as radar size, should come from a prop
+            if (enemy.online && inRange(position, echo, 250))  {
+              position.r = angleDifference(entity, enemy) + 90;
+              fireTorpedo(entity, group);
+              position.r = 0;
+              strategy.apply = false;
+              strategy.remaining = strategy.nextChange;
+            }
+        });
         break;
       }
     }
@@ -466,8 +470,8 @@ function update() {
   switch (screen) {
     case GAME_SCREEN:
       entities.forEach((entity) => {
-        updateStrategy(entity);
-        applyStrategyToInput(entity);
+        refreshStrategy(entity);
+        applyStrategy(entity);
         applyInputToVelocity(entity);
         applyVelocityToPosition(entity);
         applyPositionToEcho(entity);
