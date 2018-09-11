@@ -118,11 +118,11 @@ let running = true;
 // onresize() must have been called first as this relies on BUFFER.width/height
 function initLevels() {
   levels = [
-    // #2
+    // #1 (tutorial)
     {
       mission: [
         'enemy mine drifted into perimeter. destroy it.',
-        'turn off sonar to evade locked torpedos.'
+        'turn off sonar to evade homing torpedos.'
       ],
       looseCondition: [
         ['player', BUFFER.width * 2 / 3, BUFFER.height * 2 / 3],
@@ -139,7 +139,7 @@ function initLevels() {
       mission: [
         'enemy subs entered perimeter. sink them all.',
       ],
-       looseCondition: [
+      looseCondition: [
         ['player', BUFFER.width / 2, BUFFER.height / 2],
       ],
       otherEntities: [ ],
@@ -149,7 +149,26 @@ function initLevels() {
         ['sub1', BUFFER.width - 100, 100],
         ['sub1', BUFFER.width - 100, BUFFER.height - 100],
       ],
-    }
+    },
+    // #3
+    {
+      mission: [
+        'enemy sub broke down in perimeter. eliminate it.',
+        'enemy mines detected, proceed with caution',
+      ],
+      looseCondition: [
+        ['player', BUFFER.width * 0.75, BUFFER.height * 0.75],
+      ],
+      otherEntities: [
+        ['mine', BUFFER.width * 0.25, BUFFER.height * 0.25],
+        ['mine', BUFFER.width * 0.25, BUFFER.height * 0.5],
+        ['mine', BUFFER.width * 0.5, BUFFER.height * 0.25],
+        ['mine', BUFFER.width * 0.5, BUFFER.height * 0.5],
+      ],
+      winCondition: [
+        ['sub1', BUFFER.width / 3, BUFFER.height / 3],
+      ],
+    },
   ];
 };
 
