@@ -93,7 +93,7 @@ const BUFFER_CTX = BUFFER.getContext('2d');
 const TILESET = c.cloneNode();
 const TILESET_CTX = TILESET.getContext('2d');
 
-const ALPHABET = 'abcdefghijklmnopqrstuvwxyz0123456789.:!-%,/';
+const ALPHABET = 'abcdefghijklmnopqrstuvwxyz0123456789.:!-%,/#';
 const CHARSET_ATLAS = {};
 const CHARSET_SIZE = 8; // in px
 
@@ -678,7 +678,7 @@ function render() {
         renderText('press t to tweet your score', BUFFER.width / 2, BUFFER.height * 0.75, ALIGN_CENTER);
       } else if (won) {
         // by this time currentLevel has already been increased by 1
-        renderText(`mission 0${currentLevel} completed!`, BUFFER.width / 2, BUFFER.height / 2, ALIGN_CENTER);
+        renderText(`mission #0${currentLevel} complete`, BUFFER.width / 2, BUFFER.height / 2, ALIGN_CENTER);
         if (animationTime > 0.4) {
           renderText('press any key to start next mission', BUFFER.width / 2, BUFFER.height - 3*CHARSET_SIZE, ALIGN_CENTER);
         }
