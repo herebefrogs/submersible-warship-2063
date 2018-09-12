@@ -1,9 +1,7 @@
 
 gameplay
 ========
-- FIXME offline doesn't evade submarine...
 - WED add # to alphabet bitmap
-- mine debris don't spin/move
 ---------------- after deadline ---------
 - offline mode with Service Worker
 - web worker to load sound without blocking main loop
@@ -19,6 +17,8 @@ release checklist
 x set definitive name in README.md and game.js#onload
 x set game slug in Twitter URL in game.js#onkeyup
 n/a make sure all PNGs are tinified
+- take a good picture
+- come up with description (brief story, controls, acknowledgment, browser support...)
 - test on Chrome/Firefox/Edge
 
 game engine

@@ -329,7 +329,7 @@ function collideEntity(entity) {
     [1,2,3].forEach(function(i) {
       const position = new Position(x, y);
       const velocity = new Velocity(
-        speed,
+        speed || 50,
         dx / 2 + rand(-2, 2) / 10,
         dy / 2 + rand(-2, 2) / 10,
         rand(1, i+1) * (i%2 ? 1 : -1)
