@@ -413,7 +413,7 @@ function applyStrategy(entity) {
           entities.filter(({ collision }) => !!collision.group && collision.group !== group).forEach(function(enemy) {
             const { echo } = enemy;
             // TODO 250 same as radar size, should come from a prop
-            if (enemy.online && inRange(position, echo, 250))  {
+            if (enemy.online && inRange(position, echo, 250) && strategy.apply)  {
               position.r = angleDifference(entity, enemy) + 90;
               fireTorpedo(entity, group);
               position.r = 0;
