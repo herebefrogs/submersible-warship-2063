@@ -449,7 +449,7 @@ function applyStrategy(entity) {
           entities.filter(isEnemy(group)).forEach(function(enemy) {
             const { online } = enemy;
             // TODO 200 same as radar size, should come from a prop
-            if (online && isWithinRadar(entity, enemy, 200, 100) && strategy.readyToFire)  {
+            if (online && isWithinRadar(entity, enemy, 200, 45) && strategy.readyToFire)  {
               const torpedo = fireTorpedo(entity, entity.collision.group);
               // both the sub and the torpedo lock onto the enemy
               torpedo.strategy.target = enemy;
@@ -989,7 +989,7 @@ function renderEnemySubRadar({ position, echo, sprite }) {
   BUFFER_CTX.rotate(pos.r / RADIAN);
   BUFFER_CTX.beginPath();
   BUFFER_CTX.moveTo(-4, 0);
-  BUFFER_CTX.arc(0, 0, 200, -Math.PI*3/4, -Math.PI/4);
+  BUFFER_CTX.arc(0, 0, 200, -Math.PI*5/8, -Math.PI*3/8);
   BUFFER_CTX.lineTo(4, 0);
   BUFFER_CTX.stroke();
   BUFFER_CTX.closePath();
