@@ -269,8 +269,12 @@ function maintainWorld() {
   }
 }
 
-function inRange({ x: x1, y: y1 }, { x: x2, y: y2 }, distance) {
-  return Math.pow(distance, 2) > Math.pow(x1 - x2, 2) + Math.pow(y1 - y2, 2)
+function distanceSquare({ x: x1, y: y1 }, { x: x2, y: y2 }) {
+  return Math.pow(x1 - x2, 2) + Math.pow(y1 - y2, 2);
+};
+
+function inRange(position1, position2, distance) {
+  return Math.pow(distance, 2) > distanceSquare(position1, position2);
 };
 
 function testCircleCollision(entity1, entity2) {
@@ -348,14 +352,16 @@ function refreshStrategy(entity) {
       case 'patrol':
         // pick a new destination if there is none or it's been reached or if the target is offline
         if (!strategy.target || inRange(position, strategy.target.echo, 15) || !strategy.target.online) {
+          entity.strategy.patrolLocked = false;
           strategy.target = {
             echo: new Position(rand(0, BUFFER.width), rand(0, BUFFER.height)),
           }
         };
         // or lockon any enemy within range
-        entities.filter(isEnemy(group)).forEach(function(enemy) {
-          if (enemy.online && inRange(position, enemy.echo, 100)) {
+        getEnemiesSortedByDistance(entity).forEach(function(enemy) {
+          if (enemy.online && !entity.strategy.patrolLocked && inRange(position, enemy.echo, 100)) {
             entity.strategy.target = enemy;
+            entity.strategy.patrolLocked = true;
           }
         });
         break;
@@ -378,7 +384,7 @@ function refreshStrategy(entity) {
         break;
       case 'cruise':
         // torpedoes can only lock on enemy entities
-        entities.filter(isEnemy(group)).forEach(function(enemy) {
+        getEnemiesSortedByDistance(entity).forEach(function(enemy) {
           // TODO 200 works for torpedos right now, but might need to change when applied to enemy sub range
           if (isWithinRadar(entity, enemy, 200, 45)) {
             entity.strategy = {
@@ -417,6 +423,16 @@ function isWithinRadar(entity, enemy, radius, angle) {
   return inRange(position, echo, radius) && Math.abs(angleDifference(entity, enemy)) < angle / 2;
 }
 
+function getEnemiesSortedByDistance({ position, collision: { group } }) {
+  return entities
+    .filter(isEnemy(group))
+    .sort(({ position: position1 }, { position: position2 }) => {
+      const d1 = distanceSquare(position1, position);
+      const d2 = distanceSquare(position2, position);
+      return d1 < d2 ? -1 : d1 > d2 ? 1 : 0;
+    })
+}
+
 // change direction, fire a torpedo or whatever
 function applyStrategy(entity) {
   const { input, strategy, position, collision: { group } } = entity
@@ -453,10 +469,10 @@ function applyStrategy(entity) {
     if (strategy.readyToFire) {
       switch (strategy.type) {
         case 'patrol':
-          entities.filter(isEnemy(group)).forEach(function(enemy) {
+          getEnemiesSortedByDistance(entity).forEach(function(enemy) {
             const { online } = enemy;
             // TODO 200 same as radar size, should come from a prop
-            if (online && isWithinRadar(entity, enemy, 200, 45) && strategy.readyToFire)  {
+            if (online && strategy.readyToFire && isWithinRadar(entity, enemy, 200, 45))  {
               const torpedo = fireTorpedo(entity, entity.collision.group);
               // both the sub and the torpedo lock onto the enemy
               strategy.target = enemy;
@@ -467,10 +483,10 @@ function applyStrategy(entity) {
           break;
         case 'guard':
           // mines can only fire on enemy entities
-          entities.filter(isEnemy(group)).forEach(function(enemy) {
+          getEnemiesSortedByDistance(entity).forEach(function(enemy) {
             const { echo } = enemy;
             // TODO 250 same as radar size, should come from a prop
-            if (enemy.online && inRange(position, echo, 250) && strategy.readyToFire)  {
+            if (enemy.online && strategy.readyToFire && inRange(position, echo, 250))  {
               position.r = angleDifference(entity, enemy) + 90;
               fireTorpedo(entity, group);
               position.r = 0;
