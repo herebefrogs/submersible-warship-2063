@@ -668,7 +668,7 @@ function render() {
       renderGrid();
       entities.forEach(renderRadar);
       entities.forEach(renderEntity);
-      renderText(`sonar: ${hero.online ? 'on' : 'off'}line`, CHARSET_SIZE, CHARSET_SIZE);
+      renderText(`sonar: ${hero.online ? 'on' : 'off'}line`, BUFFER.width / 2, 2*CHARSET_SIZE, ALIGN_CENTER);
       break;
     case END_SCREEN:
       if (currentLevel >= levels.length) {
