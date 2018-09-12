@@ -144,10 +144,10 @@ function initLevels() {
       ],
       otherEntities: [ ],
       winCondition: [
-        ['sub1', 100, 100],
-        ['sub1', 100, BUFFER.height - 100],
-        ['sub1', BUFFER.width - 100, 100],
-        ['sub1', BUFFER.width - 100, BUFFER.height - 100],
+        ['sub', 100, 100],
+        ['sub', 100, BUFFER.height - 100],
+        ['sub', BUFFER.width - 100, 100],
+        ['sub', BUFFER.width - 100, BUFFER.height - 100],
       ],
     },
     // #3
@@ -166,7 +166,7 @@ function initLevels() {
         ['mine', BUFFER.width * 0.5, BUFFER.height * 0.5],
       ],
       winCondition: [
-        ['sub1', BUFFER.width / 3, BUFFER.height / 3],
+        ['sub_disabled', BUFFER.width / 3, BUFFER.height / 3],
       ],
     },
   ];
@@ -184,13 +184,22 @@ function hydrate([ type, x, y ]) {
         velocity: new Velocity(40),
         sprite: new Sprite(true, renderPlayerSub, renderPlayerRadar, () => renderDebris('rgb(75,190,250)')),
       });;
-    case 'sub1':
+    case 'sub':
       return createEntity(type, {
         collision: new Collision(true, true, 7, ENEMY_GROUP),
         input: new Input(),
         position: new Position(x, y),
         velocity: new Velocity(20),
-        strategy: new Strategy('random'),
+        strategy: new Strategy('patrol', 1.5),
+        sprite: new Sprite(false, renderEnemySub, renderEnemySubRadar, () => renderDebris('rgb(230,90,100)')),
+      });
+    case 'sub_disabled':
+      return createEntity(type, {
+        collision: new Collision(true, true, 7, ENEMY_GROUP),
+        input: new Input(),
+        position: new Position(x, y),
+        velocity: new Velocity(20),
+        strategy: new Strategy('random', 0.25),
         sprite: new Sprite(false, renderEnemySub, renderEnemySubRadar, () => renderDebris('rgb(230,90,100)')),
       });
     case 'mine':
@@ -293,7 +302,9 @@ function fireTorpedo({ position: subPos }, group) {
 
   const position = new Position(x, y, subPos.r);
   const velocity = new Velocity(60, dx, dy);
-  raised.push(createEntity('torpedo', { collision, position, sprite, strategy, ttl, velocity }));
+  const torpedo = createEntity('torpedo', { collision, position, sprite, strategy, ttl, velocity });
+  raised.push(torpedo);
+  return torpedo;
 };
 
 function collideEntity(entity) {
@@ -323,14 +334,32 @@ function collideEntity(entity) {
   }
 };
 
+function isEnemy(group) {
+  return ({ collision}) => !!collision.group && collision.group !== group;
+};
+
 // does the current strategy still make sense or should it change to something else?
 function refreshStrategy(entity) {
   const { strategy, position, collision: { group } } = entity;
   if (strategy) {
     switch (strategy.type) {
+      case 'patrol':
+        // pick a new destination if there is none or it's been reached or if the target is offline
+        if (!strategy.target || inRange(position, strategy.target.echo, 15) || !strategy.target.online) {
+          strategy.target = {
+            echo: new Position(rand(0, BUFFER.width), rand(0, BUFFER.height)),
+          }
+        };
+        // or lockon any enemy within range
+        entities.filter(isEnemy(group)).forEach(function(enemy) {
+          if (enemy.online && inRange(position, enemy.echo, 100)) {
+            entity.strategy.target = enemy;
+          }
+        });
+        break;
       case 'lockon':
         const { online, dead } = strategy.target;
-        // if target has been already destroyed, or has gone offline...
+        // if target has been already destroyed, or has gone offline, or has exited the radar...
         // TODO 10px should be in a constant of some kind
         if (dead || !online) {
           // ...switch back to moving in a straight line
@@ -347,10 +376,9 @@ function refreshStrategy(entity) {
         break;
       case 'cruise':
         // torpedoes can only lock on enemy entities
-        entities.filter(({ collision }) => !!collision.group && collision.group !== group).forEach(function(enemy) {
-          const { echo } = enemy;
-          // TODO 180 works for torpedos right now, but might need to change when applied to enemy sub range
-          if (inRange(position, echo, 180) && Math.abs(angleDifference(entity, enemy)) < 22.5) { // 22.5deg = Math.PI/8
+        entities.filter(isEnemy(group)).forEach(function(enemy) {
+          // TODO 200 works for torpedos right now, but might need to change when applied to enemy sub range
+          if (isWithinRadar(entity, enemy, 200, 45)) {
             entity.strategy = {
               ...strategy,
               type: 'lockon',
@@ -381,6 +409,12 @@ function angleDifference2DVectors({ x: x1, y: y1 }, { x: x2, y: y2}) {
   return (((Math.atan2(y2, x2) - Math.atan2(y1, x1)) * RADIAN + 180) % 360) - 180;
 };
 
+function isWithinRadar(entity, enemy, radius, angle) {
+  const { position } = entity;
+  const { echo } = enemy;
+  return inRange(position, echo, radius) && Math.abs(angleDifference(entity, enemy)) < angle / 2;
+}
+
 // change direction, fire a torpedo or whatever
 function applyStrategy(entity) {
   const { input, strategy, position, collision: { group } } = entity
@@ -388,40 +422,56 @@ function applyStrategy(entity) {
     strategy.remaining -= elapsedTime;
     if (strategy.remaining < 0) {
       strategy.remaining += strategy.nextChange;
-      strategy.apply = true;
-    }
+      strategy.readyToFire = true;
 
-    if (strategy.apply) {
+      // steering
       switch (strategy.type) {
+        case 'patrol':
         case 'lockon':
           const angle = angleDifference(entity, strategy.target);
           input.left = angle < -5 ? -1 : 0;
           input.right = angle > 5 ? 1 : 0;
           input.up = -1;
           input.down = 0;
-          strategy.apply = false;
           break;
         case 'random':
           input.up = choice([-1, 0]);
           input.left = choice([-1, 0]);
           input.right = choice([1, 0]);
           input.down = choice([1, 0]);
-          strategy.apply = false;
+          break;
+      }
+    }
+
+    if (strategy.readyToFire) {
+      switch (strategy.type) {
+        case 'patrol':
+          entities.filter(isEnemy(group)).forEach(function(enemy) {
+            const { online } = enemy;
+            // TODO 200 same as radar size, should come from a prop
+            if (online && isWithinRadar(entity, enemy, 200, 100) && strategy.readyToFire)  {
+              const torpedo = fireTorpedo(entity, entity.collision.group);
+              // both the sub and the torpedo lock onto the enemy
+              torpedo.strategy.target = enemy;
+              strategy.target = enemy;
+              strategy.readyToFire = false;
+            }
+          });
           break;
         case 'guard':
           // mines can only fire on enemy entities
-          entities.filter(({ collision }) => !!collision.group && collision.group !== group).forEach(function(enemy) {
+          entities.filter(isEnemy(group)).forEach(function(enemy) {
             const { echo } = enemy;
             // TODO 250 same as radar size, should come from a prop
-            if (enemy.online && inRange(position, echo, 250) && strategy.apply)  {
+            if (enemy.online && inRange(position, echo, 250) && strategy.readyToFire)  {
               position.r = angleDifference(entity, enemy) + 90;
               fireTorpedo(entity, group);
               position.r = 0;
-              strategy.apply = false;
+              strategy.readyToFire = false;
               strategy.remaining = strategy.nextChange;
             }
-        });
-        break;
+          });
+          break;
       }
     }
   }
@@ -885,7 +935,7 @@ function renderRadar(entity) {
 
 function renderTorpedoRadar({ position, echo, sprite }) {
   const pos = getRenderPosition(position, echo, sprite.alwaysRender);
-
+  // lockon radar
   BUFFER_CTX.rotate(pos.r / RADIAN);
   BUFFER_CTX.shadowBlur = 10;
   BUFFER_CTX.strokeStyle = hero.online ? 'rgb(220,240,150)' : 'rgb(80,100,80)';
@@ -925,19 +975,30 @@ function renderPlayerRadar(entity) {
   }
 };
 
-function renderEnemySubRadar() {
-  // radar
+function renderEnemySubRadar({ position, echo, sprite }) {
+  // lockon radar
   BUFFER_CTX.shadowBlur = 10;
-  BUFFER_CTX.strokeStyle = 'rgb(55,40,35)';
-  BUFFER_CTX.shadowColor = BUFFER_CTX.strokeStyle;
+  BUFFER_CTX.shadowColor = BUFFER_CTX.strokeStyle = 'rgb(55,40,35)';
   BUFFER_CTX.beginPath();
-  BUFFER_CTX.arc(0, 0, 80, 0, Math.PI*2);
+  BUFFER_CTX.arc(0, 0, 100, 0, Math.PI*2);
   BUFFER_CTX.stroke();
   BUFFER_CTX.closePath();
+  // attack radar
+  const pos = getRenderPosition(position, echo, sprite.alwaysRender);
+  BUFFER_CTX.save();
+  BUFFER_CTX.rotate(pos.r / RADIAN);
+  BUFFER_CTX.beginPath();
+  BUFFER_CTX.moveTo(-4, 0);
+  BUFFER_CTX.arc(0, 0, 200, -Math.PI*3/4, -Math.PI/4);
+  BUFFER_CTX.lineTo(4, 0);
+  BUFFER_CTX.stroke();
+  BUFFER_CTX.closePath();
+  BUFFER_CTX.restore();
+
 };
 
 function renderEnemyMineRadar() {
-  // radar
+  // attack radar
   BUFFER_CTX.shadowBlur = 10;
   BUFFER_CTX.strokeStyle = 'rgb(55,40,35)';
   BUFFER_CTX.shadowColor = BUFFER_CTX.strokeStyle;

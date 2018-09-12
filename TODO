@@ -1,9 +1,12 @@
 
 gameplay
 ========
-- TUESDAY some AI for enemies subs (attach player, evade torpedoes, follow a path)
+- WEB rip mobile control
+- torpedo range is only 45deg, so what's the point of firing when within 90deg range? -> make torpedo lockon immediately or reduce sub range to match torpedo
+- need a different firing/steering cadence remaining/nextChange but for firing
+- FIXME offline doesn't evade submarine...
 - WED add # to alphabet bitmap
-=====
+---------------- after deadline ---------
 - offline mode with Service Worker
 - web worker to load sound without blocking main loop
 - always centered on player + lerp (have grid move)
