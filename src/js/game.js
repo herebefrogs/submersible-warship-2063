@@ -1077,7 +1077,7 @@ onload = async (e) => {
   }, 100);
 };
 
-onresize = onrotate = () => {
+onresize = () => {
   // fit canvas in screen while maintaining aspect ratio
   c.width = BUFFER.width = innerWidth > innerHeight * RATIO ? innerHeight * RATIO : innerWidth;
   c.height = BUFFER.height = innerWidth > innerHeight * RATIO ? innerHeight : innerWidth / RATIO;
@@ -1198,156 +1198,156 @@ onkeyup = (e) => {
 
 // MOBILE INPUT HANDLERS
 
-let minX = 0;
-let minY = 0;
-let maxX = 0;
-let maxY = 0;
-let MIN_DISTANCE = 44; // in px
-let touches = [];
+// let minX = 0;
+// let minY = 0;
+// let maxX = 0;
+// let maxY = 0;
+// let MIN_DISTANCE = 44; // in px
+// let touches = [];
 
-// adding onmousedown/move/up triggers a MouseEvent and a PointerEvent
-// on platform that support both (duplicate event, pointer > mouse || touch)
-ontouchstart = onpointerdown = (e) => {
-  e.preventDefault();
-  switch (screen) {
-    case GAME_SCREEN:
-      [maxX, maxY] = [minX, minY] = pointerLocation(e);
-      break;
-  }
-};
+// // adding onmousedown/move/up triggers a MouseEvent and a PointerEvent
+// // on platform that support both (duplicate event, pointer > mouse || touch)
+// ontouchstart = onpointerdown = (e) => {
+//   e.preventDefault();
+//   switch (screen) {
+//     case GAME_SCREEN:
+//       [maxX, maxY] = [minX, minY] = pointerLocation(e);
+//       break;
+//   }
+// };
 
-ontouchmove = onpointermove = (e) => {
-  e.preventDefault();
-  switch (screen) {
-    case GAME_SCREEN:
-      if (minX && minY) {
-        setTouchPosition(pointerLocation(e));
-      }
-      break;
-  }
-}
+// ontouchmove = onpointermove = (e) => {
+//   e.preventDefault();
+//   switch (screen) {
+//     case GAME_SCREEN:
+//       if (minX && minY) {
+//         setTouchPosition(pointerLocation(e));
+//       }
+//       break;
+//   }
+// }
 
-ontouchend = onpointerup = (e) => {
-  e.preventDefault();
-  switch (screen) {
-    case TITLE_SCREEN:
-      screen = LEVEL_SCREEN;
-      break;
-    case LEVEL_SCREEN:
-      startGame();
-      break;
-    case GAME_SCREEN:
-      // stop hero
-      hero.input.left = hero.input.right = hero.input.up = hero.input.down = 0;
-      // end touch
-      minX = minY = maxX = maxY = 0;
-      break;
-    case END_SCREEN:
-      restartGame();
-      break;
-  }
-};
+// ontouchend = onpointerup = (e) => {
+//   e.preventDefault();
+//   switch (screen) {
+//     case TITLE_SCREEN:
+//       screen = LEVEL_SCREEN;
+//       break;
+//     case LEVEL_SCREEN:
+//       startGame();
+//       break;
+//     case GAME_SCREEN:
+//       // stop hero
+//       hero.input.left = hero.input.right = hero.input.up = hero.input.down = 0;
+//       // end touch
+//       minX = minY = maxX = maxY = 0;
+//       break;
+//     case END_SCREEN:
+//       restartGame();
+//       break;
+//   }
+// };
 
-// utilities
-function pointerLocation(e) {
-  return [e.pageX || e.changedTouches[0].pageX, e.pageY || e.changedTouches[0].pageY];
-};
+// // utilities
+// function pointerLocation(e) {
+//   return [e.pageX || e.changedTouches[0].pageX, e.pageY || e.changedTouches[0].pageY];
+// };
 
-function setTouchPosition([x, y]) {
-  // touch moving further right
-  if (x > maxX) {
-    maxX = x;
-    if (maxX - minX > MIN_DISTANCE) {
-      hero.input.right = 1;
-    }
-  }
-  // touch moving further left
-  else if (x < minX) {
-    minX = x;
-    if (maxX - minX > MIN_DISTANCE) {
-      hero.input.left = -1;
-    }
-  }
-  // touch reversing left while hero moving right
-  else if (x < maxX && hero.input.right) {
-    minX = x;
-    hero.input.right = 0;
-  }
-  // touch reversing right while hero moving left
-  else if (minX < x && hero.input.left) {
-    maxX = x;
-    hero.input.left = 0;
-  }
+// function setTouchPosition([x, y]) {
+//   // touch moving further right
+//   if (x > maxX) {
+//     maxX = x;
+//     if (maxX - minX > MIN_DISTANCE) {
+//       hero.input.right = 1;
+//     }
+//   }
+//   // touch moving further left
+//   else if (x < minX) {
+//     minX = x;
+//     if (maxX - minX > MIN_DISTANCE) {
+//       hero.input.left = -1;
+//     }
+//   }
+//   // touch reversing left while hero moving right
+//   else if (x < maxX && hero.input.right) {
+//     minX = x;
+//     hero.input.right = 0;
+//   }
+//   // touch reversing right while hero moving left
+//   else if (minX < x && hero.input.left) {
+//     maxX = x;
+//     hero.input.left = 0;
+//   }
 
-  // touch moving further down
-  if (y > maxY) {
-    maxY = y;
-    if (maxY - minY > MIN_DISTANCE) {
-      hero.input.down = 1;
-    }
-  }
-  // touch moving further up
-  else if (y < minY) {
-    minY = y;
-    if (maxY - minY > MIN_DISTANCE) {
-      hero.input.up = -1;
-    }
-  }
-  // touch reversing up while hero moving down
-  else if (y < maxY && hero.input.down) {
-    minY = y;
-    hero.input.down = 0;
-  }
-  // touch reversing down while hero moving up
-  else if (minY < y && hero.input.up) {
-    maxY = y;
-    hero.input.up = 0;
-  }
+//   // touch moving further down
+//   if (y > maxY) {
+//     maxY = y;
+//     if (maxY - minY > MIN_DISTANCE) {
+//       hero.input.down = 1;
+//     }
+//   }
+//   // touch moving further up
+//   else if (y < minY) {
+//     minY = y;
+//     if (maxY - minY > MIN_DISTANCE) {
+//       hero.input.up = -1;
+//     }
+//   }
+//   // touch reversing up while hero moving down
+//   else if (y < maxY && hero.input.down) {
+//     minY = y;
+//     hero.input.down = 0;
+//   }
+//   // touch reversing down while hero moving up
+//   else if (minY < y && hero.input.up) {
+//     maxY = y;
+//     hero.input.up = 0;
+//   }
 
-  // uncomment to debug mobile input handlers
-  // addDebugTouch(x, y);
-};
+//   // uncomment to debug mobile input handlers
+//   // addDebugTouch(x, y);
+// };
 
-function addDebugTouch(x, y) {
-  touches.push([x / innerWidth * BUFFER.width, y / innerHeight * BUFFER.height]);
-  if (touches.length > 10) {
-    touches = touches.slice(touches.length - 10);
-  }
-};
+// function addDebugTouch(x, y) {
+//   touches.push([x / innerWidth * BUFFER.width, y / innerHeight * BUFFER.height]);
+//   if (touches.length > 10) {
+//     touches = touches.slice(touches.length - 10);
+//   }
+// };
 
-function renderDebugTouch() {
-  let x = maxX / innerWidth * BUFFER.width;
-  let y = maxY / innerHeight * BUFFER.height;
-  renderDebugTouchBound(x, x, 0, BUFFER.height, '#f00');
-  renderDebugTouchBound(0, BUFFER.width, y, y, '#f00');
-  x = minX / innerWidth * BUFFER.width;
-  y = minY / innerHeight * BUFFER.height;
-  renderDebugTouchBound(x, x, 0, BUFFER.height, '#ff0');
-  renderDebugTouchBound(0, BUFFER.width, y, y, '#ff0');
+// function renderDebugTouch() {
+//   let x = maxX / innerWidth * BUFFER.width;
+//   let y = maxY / innerHeight * BUFFER.height;
+//   renderDebugTouchBound(x, x, 0, BUFFER.height, '#f00');
+//   renderDebugTouchBound(0, BUFFER.width, y, y, '#f00');
+//   x = minX / innerWidth * BUFFER.width;
+//   y = minY / innerHeight * BUFFER.height;
+//   renderDebugTouchBound(x, x, 0, BUFFER.height, '#ff0');
+//   renderDebugTouchBound(0, BUFFER.width, y, y, '#ff0');
 
-  if (touches.length) {
-    BUFFER_CTX.strokeStyle = BUFFER_CTX.fillStyle =   '#02d';
-    BUFFER_CTX.beginPath();
-    [x, y] = touches[0];
-    BUFFER_CTX.moveTo(x, y);
-    touches.forEach(function([x, y]) {
-      BUFFER_CTX.lineTo(x, y);
-    });
-    BUFFER_CTX.stroke();
-    BUFFER_CTX.closePath();
-    BUFFER_CTX.beginPath();
-    [x, y] = touches[touches.length - 1];
-    BUFFER_CTX.arc(x, y, 2, 0, 2 * Math.PI)
-    BUFFER_CTX.fill();
-    BUFFER_CTX.closePath();
-  }
-};
+//   if (touches.length) {
+//     BUFFER_CTX.strokeStyle = BUFFER_CTX.fillStyle =   '#02d';
+//     BUFFER_CTX.beginPath();
+//     [x, y] = touches[0];
+//     BUFFER_CTX.moveTo(x, y);
+//     touches.forEach(function([x, y]) {
+//       BUFFER_CTX.lineTo(x, y);
+//     });
+//     BUFFER_CTX.stroke();
+//     BUFFER_CTX.closePath();
+//     BUFFER_CTX.beginPath();
+//     [x, y] = touches[touches.length - 1];
+//     BUFFER_CTX.arc(x, y, 2, 0, 2 * Math.PI)
+//     BUFFER_CTX.fill();
+//     BUFFER_CTX.closePath();
+//   }
+// };
 
-function renderDebugTouchBound(_minX, _maxX, _minY, _maxY, color) {
-  BUFFER_CTX.strokeStyle = color;
-  BUFFER_CTX.beginPath();
-  BUFFER_CTX.moveTo(_minX, _minY);
-  BUFFER_CTX.lineTo(_maxX, _maxY);
-  BUFFER_CTX.stroke();
-  BUFFER_CTX.closePath();
-};
+// function renderDebugTouchBound(_minX, _maxX, _minY, _maxY, color) {
+//   BUFFER_CTX.strokeStyle = color;
+//   BUFFER_CTX.beginPath();
+//   BUFFER_CTX.moveTo(_minX, _minY);
+//   BUFFER_CTX.lineTo(_maxX, _maxY);
+//   BUFFER_CTX.stroke();
+//   BUFFER_CTX.closePath();
+// };
