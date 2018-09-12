@@ -43,12 +43,14 @@ function Input() {
   this.down = 0;
 }
 
-function Strategy(type, nextChange) {
+function Strategy(type, nextSteering, nextAttack) {
   this.type = type;
   this.target = undefined;
   // TODO remove when 'random' isn't a thing anymore
-  this.nextChange = nextChange || 0.5;
-  this.remaining = 0;
+  this.nextSteering = nextSteering || 0.5;
+  this.remainingBeforeSteering = 0;
+  this.nextAttack = nextAttack || 1;
+  this.remainingBeforeAttack = 0;
 }
 
 function Velocity(speed, dx = 0, dy = 0, dr = 0) {
@@ -190,7 +192,7 @@ function hydrate([ type, x, y ]) {
         input: new Input(),
         position: new Position(x, y),
         velocity: new Velocity(20),
-        strategy: new Strategy('patrol', 1.5),
+        strategy: new Strategy('patrol', 0.1, 1.5),
         sprite: new Sprite(false, renderEnemySub, renderEnemySubRadar, () => renderDebris('rgb(230,90,100)')),
       });
     case 'sub_disabled':
@@ -207,7 +209,7 @@ function hydrate([ type, x, y ]) {
         collision: new Collision(true, true, 9, ENEMY_GROUP),
         position: new Position(x, y),
         velocity: new Velocity(0),
-        strategy: new Strategy('guard', 5),
+        strategy: new Strategy('guard', 0, 5),
         sprite: new Sprite(false, renderEnemyMine, renderEnemyMineRadar, () => renderDebris('rgb(230,90,100)')),
       });
     case 'rock':
@@ -367,8 +369,8 @@ function refreshStrategy(entity) {
             ...strategy,
             type: 'cruise',
             target: undefined,
-            nextChange: 0.5,
-            remaining: 0,
+            nextSteering: 0.5,
+            remainingBeforeSteering: 0,
           };
           entity.input = null;
           entity.velocity.dr = 0;
@@ -383,8 +385,8 @@ function refreshStrategy(entity) {
               ...strategy,
               type: 'lockon',
               target: enemy,
-              nextChange: 0.1,
-              remaining: 0,
+              nextSteering: 0.1,
+              remainingBeforeSteering: 0,
             };
             strategy.target = enemy;
             entity.input = new Input();
@@ -419,10 +421,9 @@ function isWithinRadar(entity, enemy, radius, angle) {
 function applyStrategy(entity) {
   const { input, strategy, position, collision: { group } } = entity
   if (strategy) {
-    strategy.remaining -= elapsedTime;
-    if (strategy.remaining < 0) {
-      strategy.remaining += strategy.nextChange;
-      strategy.readyToFire = true;
+    strategy.remainingBeforeSteering -= elapsedTime;
+    if (strategy.remainingBeforeSteering < 0) {
+      strategy.remainingBeforeSteering += strategy.nextSteering;
 
       // steering
       switch (strategy.type) {
@@ -443,6 +444,12 @@ function applyStrategy(entity) {
       }
     }
 
+    strategy.remainingBeforeAttack -= elapsedTime;
+    if (strategy.remainingBeforeAttack < 0) {
+      strategy.remainingBeforeAttack += strategy.nextAttack;
+      strategy.readyToFire = true;
+    }
+
     if (strategy.readyToFire) {
       switch (strategy.type) {
         case 'patrol':
@@ -452,9 +459,9 @@ function applyStrategy(entity) {
             if (online && isWithinRadar(entity, enemy, 200, 45) && strategy.readyToFire)  {
               const torpedo = fireTorpedo(entity, entity.collision.group);
               // both the sub and the torpedo lock onto the enemy
-              torpedo.strategy.target = enemy;
               strategy.target = enemy;
               strategy.readyToFire = false;
+              strategy.remainingBeforeAttack = strategy.nextAttack;
             }
           });
           break;
@@ -468,7 +475,7 @@ function applyStrategy(entity) {
               fireTorpedo(entity, group);
               position.r = 0;
               strategy.readyToFire = false;
-              strategy.remaining = strategy.nextChange;
+              strategy.remainingBeforeSteering = strategy.nextSteering;
             }
           });
           break;

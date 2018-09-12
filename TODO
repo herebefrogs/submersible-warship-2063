@@ -1,7 +1,6 @@
 
 gameplay
 ========
-- need a different firing/steering cadence remaining/nextChange but for firing
 - FIXME offline doesn't evade submarine...
 - WED add # to alphabet bitmap
 - mine debris don't spin/move
