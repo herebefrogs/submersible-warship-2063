@@ -128,7 +128,7 @@ function initLevels() {
         ['player', BUFFER.width * 2 / 3, BUFFER.height * 2 / 3],
       ],
       otherEntities: [
-        ['rock', BUFFER.width / 2, BUFFER.height / 2]
+        ['rock', BUFFER.width / 2 - BUFFER.width / 60, BUFFER.height / 2 - BUFFER.width / 60]
       ],
       winCondition: [
         ['mine', BUFFER.width / 3, BUFFER.height / 3],
@@ -203,7 +203,7 @@ function hydrate([ type, x, y ]) {
       });
     case 'rock':
       return createEntity(type, {
-        collision: new Collision(true, false, 55),
+        collision: new Collision(true, false, 75),
         position: new Position(x, y),
         velocity: new Velocity(0),
         sprite: new Sprite(true, renderRock),
@@ -797,7 +797,7 @@ function renderEnemySub() {
 };
 
 function renderEnemyMine() {
-  BUFFER_CTX.lineWidth = 3;
+  BUFFER_CTX.lineWidth = 2;
   BUFFER_CTX.shadowBlur = 10;
   BUFFER_CTX.fillStyle = BUFFER_CTX.strokeStyle = hero.online ? 'rgb(230,90,100)' : 'rgb(55,40,35)';
   BUFFER_CTX.shadowColor = BUFFER_CTX.fillStyle;
@@ -828,14 +828,40 @@ function renderRock() {
   BUFFER_CTX.shadowColor = BUFFER_CTX.strokeStyle;
   BUFFER_CTX.fillStyle = 'rgba(30,60,60,0.5)';
   BUFFER_CTX.beginPath();
-  BUFFER_CTX.moveTo(0, -55);
-  BUFFER_CTX.lineTo(-38, -42);
-  BUFFER_CTX.lineTo(-52, 0);
-  BUFFER_CTX.lineTo(-41, 46);
-  BUFFER_CTX.lineTo(-2, 43);
-  BUFFER_CTX.lineTo(50, 52);
-  BUFFER_CTX.lineTo(52, 0);
-  BUFFER_CTX.lineTo(45, -47);
+  BUFFER_CTX.moveTo(0, -70);
+  [
+    [-25, -73],
+    [-35, -35],
+    [-70, -30],
+    [-70, -25],
+    [-70, -25],
+    [-65, 0],
+    [-25, 12],
+    [-5, 65],
+    [12, 73],
+    [25, 50],
+    [55, 45],
+    [75, 0],
+    [60, -45],
+    [35, -40],
+    [38, -71],
+    [0, -69],
+  ].forEach(function([x, y]) {
+    BUFFER_CTX.lineTo(x, y);
+  });
+  BUFFER_CTX.closePath();
+  BUFFER_CTX.fill();
+  BUFFER_CTX.stroke();
+  BUFFER_CTX.beginPath();
+  BUFFER_CTX.moveTo(-50, 20);
+  [
+    [-70, 25],
+    [-50, 50],
+    [-25, 50],
+    [-25, 25],
+  ].forEach(function([x, y]) {
+    BUFFER_CTX.lineTo(x, y);
+  });
   BUFFER_CTX.closePath();
   BUFFER_CTX.fill();
   BUFFER_CTX.stroke();
