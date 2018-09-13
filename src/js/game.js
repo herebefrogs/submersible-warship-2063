@@ -873,8 +873,7 @@ function renderEnemySub() {
 function renderEnemyMine() {
   BUFFER_CTX.lineWidth = 2;
   BUFFER_CTX.shadowBlur = 10;
-  BUFFER_CTX.fillStyle = BUFFER_CTX.strokeStyle = hero.online ? 'rgb(230,90,100)' : 'rgb(55,40,35)';
-  BUFFER_CTX.shadowColor = BUFFER_CTX.fillStyle;
+  BUFFER_CTX.shadowColor = BUFFER_CTX.fillStyle = BUFFER_CTX.strokeStyle = hero.online ? 'rgb(230,90,100)' : 'rgb(55,40,35)';
   BUFFER_CTX.beginPath();
   BUFFER_CTX.arc(0, 0, 4, 0, 2*Math.PI);
   BUFFER_CTX.fill();
@@ -1010,6 +1009,7 @@ function renderEnemySubRadar({ position, echo, sprite }) {
   // attack radar
   const pos = getRenderPosition(position, echo, sprite.alwaysRender);
   BUFFER_CTX.save();
+  BUFFER_CTX.shadowColor = BUFFER_CTX.strokeStyle = hero.online ? 'rgb(230,90,100,0.5)' : 'rgb(55,40,35)';
   BUFFER_CTX.rotate(pos.r / RADIAN);
   BUFFER_CTX.beginPath();
   BUFFER_CTX.moveTo(-4, 0);
@@ -1024,8 +1024,7 @@ function renderEnemySubRadar({ position, echo, sprite }) {
 function renderEnemyMineRadar() {
   // attack radar
   BUFFER_CTX.shadowBlur = 10;
-  BUFFER_CTX.strokeStyle = 'rgb(55,40,35)';
-  BUFFER_CTX.shadowColor = BUFFER_CTX.strokeStyle;
+  BUFFER_CTX.shadowColor = BUFFER_CTX.strokeStyle = hero.online ? 'rgb(230,90,100,0.5)' : 'rgb(55,40,35)';
   BUFFER_CTX.beginPath();
   BUFFER_CTX.arc(0, 0, 250, 0, Math.PI*2);
   BUFFER_CTX.stroke();
