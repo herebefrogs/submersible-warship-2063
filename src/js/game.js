@@ -492,7 +492,7 @@ function applyStrategy(entity) {
               fireTorpedo(entity, group);
               position.r = currentAngle;
               strategy.readyToFire = false;
-              strategy.remainingBeforeSteering = strategy.nextSteering;
+              strategy.remainingBeforeAttack = strategy.nextAttack;
             }
           });
           break;
