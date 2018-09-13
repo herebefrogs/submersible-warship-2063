@@ -190,7 +190,7 @@ function hydrate([ type, x, y ]) {
       return createEntity(type, {
         collision: new Collision(true, true, 7, ENEMY_GROUP),
         input: new Input(),
-        position: new Position(x, y),
+        position: new Position(x, y, rand(0, 360)),
         velocity: new Velocity(20),
         strategy: new Strategy('patrol', 0.5, 1.5),
         sprite: new Sprite(false, renderEnemySub, renderEnemySubRadar, () => renderDebris('rgb(230,90,100)')),
@@ -199,7 +199,7 @@ function hydrate([ type, x, y ]) {
       return createEntity(type, {
         collision: new Collision(true, true, 7, ENEMY_GROUP),
         input: new Input(),
-        position: new Position(x, y),
+        position: new Position(x, y, rand(0, 360)),
         velocity: new Velocity(20),
         strategy: new Strategy('random', 0.25),
         sprite: new Sprite(false, renderEnemySub, renderEnemySubRadar, () => renderDebris('rgb(230,90,100)')),
@@ -208,14 +208,14 @@ function hydrate([ type, x, y ]) {
       return createEntity(type, {
         collision: new Collision(true, true, 9, ENEMY_GROUP),
         position: new Position(x, y),
-        velocity: new Velocity(25, 0, 0, 1),
+        velocity: new Velocity(25, 0, 0, choice([1, -1])),
         strategy: new Strategy('guard', 0, 5),
         sprite: new Sprite(false, renderEnemyMine, renderEnemyMineRadar, () => renderDebris('rgb(230,90,100)')),
       });
     case 'rock':
       return createEntity(type, {
         collision: new Collision(true, false, 75),
-        position: new Position(x, y),
+        position: new Position(x, y, rand(0, 360)),
         velocity: new Velocity(0),
         sprite: new Sprite(true, renderRock),
       });
