@@ -208,7 +208,7 @@ function hydrate([ type, x, y ]) {
       return createEntity(type, {
         collision: new Collision(true, true, 9, ENEMY_GROUP),
         position: new Position(x, y),
-        velocity: new Velocity(0),
+        velocity: new Velocity(25, 0, 0, 1),
         strategy: new Strategy('guard', 0, 5),
         sprite: new Sprite(false, renderEnemyMine, renderEnemyMineRadar, () => renderDebris('rgb(230,90,100)')),
       });
@@ -329,7 +329,7 @@ function collideEntity(entity) {
     [1,2,3].forEach(function(i) {
       const position = new Position(x, y);
       const velocity = new Velocity(
-        speed || 50,
+        speed,
         dx / 2 + rand(-2, 2) / 10,
         dy / 2 + rand(-2, 2) / 10,
         rand(1, i+1) * (i%2 ? 1 : -1)
@@ -487,9 +487,10 @@ function applyStrategy(entity) {
             const { echo } = enemy;
             // TODO 250 same as radar size, should come from a prop
             if (enemy.online && strategy.readyToFire && inRange(position, echo, 250))  {
+              const currentAngle = position.r;
               position.r = angleDifference(entity, enemy) + 90;
               fireTorpedo(entity, group);
-              position.r = 0;
+              position.r = currentAngle;
               strategy.readyToFire = false;
               strategy.remainingBeforeSteering = strategy.nextSteering;
             }
