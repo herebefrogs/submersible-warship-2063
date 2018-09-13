@@ -124,13 +124,13 @@ function initLevels() {
     {
       mission: [
         'enemy mine drifted into perimeter. destroy it.',
-        'turn off sonar to evade homing torpedos.'
+        'turn off sonar to evade torpedos.'
       ],
       looseCondition: [
         ['player', BUFFER.width * 2 / 3, BUFFER.height * 2 / 3],
       ],
       otherEntities: [
-        ['rock', BUFFER.width / 2 - BUFFER.width / 60, BUFFER.height / 2 - BUFFER.width / 60]
+        ['rock', BUFFER.width / 2, BUFFER.height / 2]
       ],
       winCondition: [
         ['mine', BUFFER.width / 3, BUFFER.height / 3],
@@ -142,14 +142,19 @@ function initLevels() {
         'enemy subs entered perimeter. sink them all.',
       ],
       looseCondition: [
-        ['player', BUFFER.width / 2, BUFFER.height / 2],
+        ['player', BUFFER.width * 0.9, BUFFER.height * 0.9],
       ],
-      otherEntities: [ ],
+      otherEntities: [
+        ['rock', BUFFER.width * 0.35, 0],
+        ['rock', BUFFER.width * 0.65, BUFFER.height * 0.75],
+        ['rock', 0, BUFFER.height * 0.65],
+        ['rock', BUFFER.width, BUFFER.height * 3 / 8],
+      ],
       winCondition: [
-        ['sub', 100, 100],
-        ['sub', 100, BUFFER.height - 100],
-        ['sub', BUFFER.width - 100, 100],
-        ['sub', BUFFER.width - 100, BUFFER.height - 100],
+        ['sub', BUFFER.width * 0.1, BUFFER.height * 0.1],
+        ['sub', BUFFER.width * 0.1, BUFFER.height * 0.9],
+        ['sub', BUFFER.width * 0.9, BUFFER.height * 0.1],
+        ['sub', BUFFER.width * 0.4, BUFFER.height * 0.4],
       ],
     },
     // #3
@@ -159,16 +164,19 @@ function initLevels() {
         'enemy mines detected, proceed with caution',
       ],
       looseCondition: [
-        ['player', BUFFER.width * 0.75, BUFFER.height * 0.75],
+        ['player', BUFFER.width * 0.1 , BUFFER.height * 0.9],
       ],
       otherEntities: [
         ['mine', BUFFER.width * 0.25, BUFFER.height * 0.25],
-        ['mine', BUFFER.width * 0.25, BUFFER.height * 0.5],
         ['mine', BUFFER.width * 0.5, BUFFER.height * 0.25],
-        ['mine', BUFFER.width * 0.5, BUFFER.height * 0.5],
+        ['mine', BUFFER.width * 0.55, BUFFER.height * 0.6],
+        ['mine', BUFFER.width * 0.8, BUFFER.height * 0.8],
+        ['mine', BUFFER.width * 0.9, BUFFER.height * 0.1],
+        ['rock', BUFFER.width * 0.35, BUFFER.height],
+        ['rock', BUFFER.width * 0.6, 0],
       ],
       winCondition: [
-        ['sub_disabled', BUFFER.width / 3, BUFFER.height / 3],
+        ['sub_disabled', BUFFER.width * 0.8, BUFFER.height * 0.35],
       ],
     },
   ];
@@ -354,7 +362,7 @@ function refreshStrategy(entity) {
         if (!strategy.target || inRange(position, strategy.target.echo, 15) || !strategy.target.online) {
           entity.strategy.patrolLocked = false;
           strategy.target = {
-            echo: new Position(rand(0, BUFFER.width), rand(0, BUFFER.height)),
+            echo: new Position(rand(BUFFER.width*0.2, BUFFER.width*0.8), rand(BUFFER.height*0.2, BUFFER.height*0.8)),
             online: true,
           }
         };
