@@ -25,14 +25,17 @@ let looseCondition;
 let winCondition;
 let endTime;
 let nbSubSunk = 0;
-// no-op player in case the songs fail to load
-let konamiAudio = { play: () => {} };
-let musicAudio = { play: () => {} };
 
 const FRIEND_GROUP = 1;
 const ENEMY_GROUP = 2;
 
 const RADIAN = 180 / Math.PI;
+
+// MUSIC VARIABLES
+let konamiAudio = { play: () => {} };
+let musicAudio = { play: () => {} };
+let songsLoaded = false;
+
 
 // COMPONENTS
 
@@ -629,6 +632,8 @@ async function initSound() {
   musicAudio = audio;
   musicAudio.src = data;
   musicAudio.loop = true;
+
+  songsLoaded = true;
 }
 
 // RENDER HANDLERS
@@ -648,7 +653,10 @@ function render() {
 
   switch (screen) {
     case LOADING_SCREEN:
-      renderText(`loading${animationTime < 0.25 ? '' : animationTime < 0.5 ? '.' : animationTime < 0.75 ? '..' : '...'}`, BUFFER.width / 2, BUFFER.height / 2, ALIGN_CENTER);
+      renderText(songsLoaded ? 'ready to dive!' : 'loading...', BUFFER.width / 2, BUFFER.height / 2, ALIGN_CENTER);
+      if (songsLoaded && animationTime > 0.4) {
+        renderText('press any key', BUFFER.width / 2, BUFFER.height - 3*CHARSET_SIZE, ALIGN_CENTER);
+      }
       break;
     case TITLE_SCREEN:
       renderGrid();
@@ -1099,13 +1107,9 @@ onload = async (e) => {
 
   // TODO put this is a web worker so the loading animation loop can work
   setTimeout(function() {
-    initTileset(),
+    initTileset();
     initLevels();
-    initSound(),
-    // TODO potential DOMException because player hasn't clicked on anything yet
-    // should ask to press any key when loading is done, then play track
-    musicAudio.play();
-    screen = TITLE_SCREEN;
+    initSound();
   }, 100);
 };
 
@@ -1176,6 +1180,10 @@ onkeydown = (e) => {
 
 onkeyup = (e) => {
   switch (screen) {
+    case LOADING_SCREEN:
+      musicAudio.play();
+      screen = TITLE_SCREEN;
+      break;
     case TITLE_SCREEN:
       if (e.which !== konamiCode[konamiIndex] || konamiIndex === konamiCode.length) {
         screen = LEVEL_SCREEN;
