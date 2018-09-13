@@ -192,7 +192,7 @@ function hydrate([ type, x, y ]) {
         input: new Input(),
         position: new Position(x, y),
         velocity: new Velocity(20),
-        strategy: new Strategy('patrol', 0.1, 1.5),
+        strategy: new Strategy('patrol', 0.5, 1.5),
         sprite: new Sprite(false, renderEnemySub, renderEnemySubRadar, () => renderDebris('rgb(230,90,100)')),
       });
     case 'sub_disabled':
@@ -355,6 +355,7 @@ function refreshStrategy(entity) {
           entity.strategy.patrolLocked = false;
           strategy.target = {
             echo: new Position(rand(0, BUFFER.width), rand(0, BUFFER.height)),
+            online: true,
           }
         };
         // or lockon any enemy within range
