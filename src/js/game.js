@@ -669,7 +669,7 @@ function render() {
       renderText('game: jerome lecomte', BUFFER.width - 2*CHARSET_SIZE, BUFFER.height / 2 - (CHARSET_SIZE + 2), ALIGN_RIGHT);
       renderText('music: mark sparling', BUFFER.width - 2*CHARSET_SIZE, BUFFER.height / 2 + (CHARSET_SIZE + 2), ALIGN_RIGHT);
       if (animationTime > 0.4) {
-        renderText('press any key to start', BUFFER.width / 2, BUFFER.height - 3*CHARSET_SIZE, ALIGN_CENTER);
+        renderText('press space to start', BUFFER.width / 2, BUFFER.height - 3*CHARSET_SIZE, ALIGN_CENTER);
       }
       break;
       case LEVEL_SCREEN:
@@ -678,7 +678,7 @@ function render() {
         renderText(instruction, BUFFER.width / 2, BUFFER.height / 2 + i*2*(CHARSET_SIZE + 2), ALIGN_CENTER);
       });
       if (animationTime > 0.4) {
-        renderText('press any key to start mission', BUFFER.width / 2, BUFFER.height - 3*CHARSET_SIZE, ALIGN_CENTER);
+        renderText('press space to start mission', BUFFER.width / 2, BUFFER.height - 3*CHARSET_SIZE, ALIGN_CENTER);
       }
       break;
     case GAME_SCREEN:
@@ -695,16 +695,19 @@ function render() {
         renderText('you finished submersible warship 2063', BUFFER.width / 2, BUFFER.height * 0.25 + 2*(CHARSET_SIZE + 2), ALIGN_CENTER);
         renderText('thank you for playing!', BUFFER.width / 2, BUFFER.height * 0.25 + 4*(CHARSET_SIZE + 2), ALIGN_CENTER);
         renderText('press t to tweet your score', BUFFER.width / 2, BUFFER.height * 0.75, ALIGN_CENTER);
+        if (animationTime > 0.4) {
+          renderText('press space to try again', BUFFER.width / 2, BUFFER.height - 3*CHARSET_SIZE, ALIGN_CENTER);
+        }
       } else if (won) {
         // by this time currentLevel has already been increased by 1
         renderText(`mission #0${currentLevel} complete`, BUFFER.width / 2, BUFFER.height / 2, ALIGN_CENTER);
         if (animationTime > 0.4) {
-          renderText('press any key to start next mission', BUFFER.width / 2, BUFFER.height - 3*CHARSET_SIZE, ALIGN_CENTER);
+          renderText('press space to continue', BUFFER.width / 2, BUFFER.height - 3*CHARSET_SIZE, ALIGN_CENTER);
         }
       } else {
         renderText('you died!', BUFFER.width / 2, BUFFER.height / 2, ALIGN_CENTER);
         if (animationTime > 0.4) {
-          renderText('press any key to try again', BUFFER.width / 2, BUFFER.height - 3*CHARSET_SIZE, ALIGN_CENTER);
+          renderText('press space to try again', BUFFER.width / 2, BUFFER.height - 3*CHARSET_SIZE, ALIGN_CENTER);
         }
       }
       break;
@@ -1185,18 +1188,20 @@ onkeyup = (e) => {
       screen = TITLE_SCREEN;
       break;
     case TITLE_SCREEN:
-      if (e.which !== konamiCode[konamiIndex] || konamiIndex === konamiCode.length) {
-        screen = LEVEL_SCREEN;
-      } else {
+      if (e.which === konamiCode[konamiIndex]) {
         konamiIndex++;
         if (konamiIndex === konamiCode.length) {
           // secret code complete
           konamiAudio.play();
         }
+      } else if (e.code === 'Space') {
+        screen = LEVEL_SCREEN;
       }
       break;
     case LEVEL_SCREEN:
-      startGame();
+      if (e.code === 'Space') {
+        startGame();
+      }
       break;
     case GAME_SCREEN:
       switch (e.code) {
@@ -1228,7 +1233,7 @@ onkeyup = (e) => {
         case 'KeyT':
           open(`https://twitter.com/intent/tweet?text=I%20sunk%20${nbSubSunk||0}%20enemy%20submarines%20in%20SUBmersible%20WARship%202063%20by%20@herebefrogs%20for%20@js13kgames%202018%3A%20https%3A%2F%2Fgoo.gl%2FHLo6Df`, '_blank');
           break;
-        default:
+        case 'Space':
           restartGame();
           break;
       }
