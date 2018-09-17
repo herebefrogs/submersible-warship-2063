@@ -254,6 +254,7 @@ function startGame() {
 function restartGame() {
   won = lost = false;
   if (currentLevel >= levels.length) {
+    currentLevel = 0;
     konamiIndex = 0;
     screen = TITLE_SCREEN;
   } else {
