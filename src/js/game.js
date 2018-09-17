@@ -98,7 +98,7 @@ const TILESET_CTX = TILESET.getContext('2d');
 
 const ALPHABET = 'abcdefghijklmnopqrstuvwxyz0123456789.:!-%,/#';
 const CHARSET_ATLAS = {};
-const CHARSET_SIZE = 8; // in px
+const CHARSET_SIZE = 5; // in px
 
 for (let i = 0; i < ALPHABET.length; i++) {
   CHARSET_ATLAS[ALPHABET[i]] = i * CHARSET_SIZE;
@@ -662,19 +662,19 @@ function render() {
       renderGrid();
       renderText('js13kgames 2018', BUFFER.width / 2, 2*CHARSET_SIZE, ALIGN_CENTER);
       renderTitle();
-      renderText('move: arrows/wasd', 2*CHARSET_SIZE, BUFFER.height / 2 - 2*CHARSET_SIZE, ALIGN_LEFT);
+      renderText('move: arrows/wasd', 2*CHARSET_SIZE, BUFFER.height / 2 - 2*(CHARSET_SIZE + 2), ALIGN_LEFT);
       renderText('torpedo: space', 2*CHARSET_SIZE, BUFFER.height / 2, ALIGN_LEFT);
-      renderText('sonar: f/o', 2*CHARSET_SIZE, BUFFER.height / 2 + 2*CHARSET_SIZE, ALIGN_LEFT);
-      renderText('game: jerome lecomte', BUFFER.width - 2*CHARSET_SIZE, BUFFER.height / 2 - CHARSET_SIZE, ALIGN_RIGHT);
-      renderText('music: mark sparling', BUFFER.width - 2*CHARSET_SIZE, BUFFER.height / 2 + CHARSET_SIZE, ALIGN_RIGHT);
+      renderText('sonar: f/o', 2*CHARSET_SIZE, BUFFER.height / 2 + 2*(CHARSET_SIZE + 2), ALIGN_LEFT);
+      renderText('game: jerome lecomte', BUFFER.width - 2*CHARSET_SIZE, BUFFER.height / 2 - (CHARSET_SIZE + 2), ALIGN_RIGHT);
+      renderText('music: mark sparling', BUFFER.width - 2*CHARSET_SIZE, BUFFER.height / 2 + (CHARSET_SIZE + 2), ALIGN_RIGHT);
       if (animationTime > 0.4) {
         renderText('press any key to start', BUFFER.width / 2, BUFFER.height - 3*CHARSET_SIZE, ALIGN_CENTER);
       }
       break;
       case LEVEL_SCREEN:
-      renderText(`mission #0${currentLevel+1}`, BUFFER.width / 2, BUFFER.height / 2 - 2*CHARSET_SIZE, ALIGN_CENTER);
+      renderText(`mission #0${currentLevel+1}`, BUFFER.width / 2, BUFFER.height / 2 - 2*(CHARSET_SIZE + 2), ALIGN_CENTER);
       levels[currentLevel].mission.forEach((instruction, i) => {
-        renderText(instruction, BUFFER.width / 2, BUFFER.height / 2 + i*2*CHARSET_SIZE, ALIGN_CENTER);
+        renderText(instruction, BUFFER.width / 2, BUFFER.height / 2 + i*2*(CHARSET_SIZE + 2), ALIGN_CENTER);
       });
       if (animationTime > 0.4) {
         renderText('press any key to start mission', BUFFER.width / 2, BUFFER.height - 3*CHARSET_SIZE, ALIGN_CENTER);
@@ -691,8 +691,8 @@ function render() {
     case END_SCREEN:
       if (currentLevel >= levels.length) {
         renderTitle();
-        renderText('you finished submersible warship 2063', BUFFER.width / 2, BUFFER.height * 0.25 + 2*CHARSET_SIZE, ALIGN_CENTER);
-        renderText('thank you for playing!', BUFFER.width / 2, BUFFER.height * 0.25 + 4*CHARSET_SIZE, ALIGN_CENTER);
+        renderText('you finished submersible warship 2063', BUFFER.width / 2, BUFFER.height * 0.25 + 2*(CHARSET_SIZE + 2), ALIGN_CENTER);
+        renderText('thank you for playing!', BUFFER.width / 2, BUFFER.height * 0.25 + 4*(CHARSET_SIZE + 2), ALIGN_CENTER);
         renderText('press t to tweet your score', BUFFER.width / 2, BUFFER.height * 0.75, ALIGN_CENTER);
       } else if (won) {
         // by this time currentLevel has already been increased by 1
@@ -1048,19 +1048,18 @@ function renderEnemyMineRadar() {
   BUFFER_CTX.closePath();
 };
 
-function renderText(msg, x, y, align = ALIGN_LEFT, scale = 1) {
+function renderText(msg, x, y, align = ALIGN_LEFT, scale = 2) {
   const SCALED_SIZE = scale * CHARSET_SIZE;
-  const MSG_WIDTH = msg.length * SCALED_SIZE;
   const ALIGN_OFFSET =
-    align === ALIGN_RIGHT ? MSG_WIDTH :
-    align === ALIGN_CENTER ? MSG_WIDTH / 2 :
+    align === ALIGN_RIGHT ? msg.length :
+    align === ALIGN_CENTER ? msg.length / 2 :
     0;
   [...msg].forEach((c, i) => {
     if (c in CHARSET_ATLAS) {
       BUFFER_CTX.drawImage(
         charset,
         CHARSET_ATLAS[c], 0, CHARSET_SIZE, CHARSET_SIZE,
-        x + i*SCALED_SIZE - ALIGN_OFFSET, y, SCALED_SIZE, SCALED_SIZE
+        Math.floor(x + (i - ALIGN_OFFSET)*(SCALED_SIZE + scale)), Math.floor(y), SCALED_SIZE, SCALED_SIZE
       );
     }
   });
