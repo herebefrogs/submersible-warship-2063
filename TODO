@@ -1,15 +1,14 @@
 
 gameplay
 ========
-- WED add # to alphabet bitmap
----------------- after deadline ---------
-- offline mode with Service Worker
+- display 3 torpedo slots (bright yellow or dark yellow) rather than just the count
 - web worker to load sound without blocking main loop
 - always centered on player + lerp (have grid move)
 - add parallax to rock formation to suggest 3D
-- enemy submarines that also go offline
-- firing in offline mode should reveal position temporarily
+- enemy submarines avoid obstacle
+- enemy submarines that also go offline (featured in a new mission)
 - proximity alert could reveal positions of both parties temporarily
+- offline mode with Service Worker
 
 
 release checklist

@@ -87,6 +87,13 @@ function Sprite(alwaysRender, renderer, radarRenderer, debrisRenderer) {
   this.debrisRenderer = debrisRenderer;
 }
 
+function Ammo(max, reloadTime) {
+  this.max = max;
+  this.current = max;
+  this.reloadTime = reloadTime;
+  this.currentTime = 0;
+}
+
 // RENDER VARIABLES
 
 const RATIO = 16 / 10;
@@ -191,6 +198,7 @@ function hydrate([ type, x, y ]) {
   switch (type) {
     case 'player':
       return createEntity(type, {
+        ammo: new Ammo(3, 5),
         collision: new Collision(true, konamiIndex !== konamiCode.length, 7, FRIEND_GROUP),
         input: new Input(),
         position: new Position(x, y),
@@ -305,7 +313,10 @@ function constrainToViewport(entity) {
   position.y = clamp(position.y, 0, BUFFER.height - collision.radius)
 };
 
-function fireTorpedo({ position: subPos }, group) {
+function fireTorpedo({ position: subPos, ammo }, group) {
+  if (ammo) {
+    ammo.current -= 1;
+  }
   const strategy = new Strategy('cruise');
   const collision = new Collision(true, true, 5, group);
   const sprite = new Sprite(false, renderTorpedo, renderTorpedoRadar, () => renderDebris('rgb(220,240,150)'));
@@ -486,7 +497,7 @@ function applyStrategy(entity) {
             const { online } = enemy;
             // TODO 200 same as radar size, should come from a prop
             if (online && strategy.readyToFire && isWithinRadar(entity, enemy, 200, 45))  {
-              const torpedo = fireTorpedo(entity, entity.collision.group);
+              fireTorpedo(entity, entity.collision.group);
               // both the sub and the torpedo lock onto the enemy
               strategy.target = enemy;
               strategy.readyToFire = false;
@@ -556,6 +567,17 @@ function applyElapsedTimeToTtl(entity) {
   }
 };
 
+function reloadTorpedo({ ammo }) {
+  if (ammo && ammo.current !== ammo.max) {
+    ammo.currentTime += elapsedTime;
+    if (ammo.currentTime > ammo.reloadTime) {
+      ammo.current += 1;
+      ammo.currentTime = (ammo.current === ammo.max) ? 0 : ammo.currentTime - ammo.reloadTime;
+    }
+    console.log(ammo.currentTime);
+  }
+}
+
 function checkEndGame() {
   if (lost || won) {
     endTime += elapsedTime;
@@ -575,6 +597,7 @@ function checkEndGame() {
 function update() {
   switch (screen) {
     case GAME_SCREEN:
+      reloadTorpedo(hero)
       entities.forEach((entity) => {
         refreshStrategy(entity);
         applyStrategy(entity);
@@ -672,7 +695,7 @@ function render() {
         renderText('press space to start', BUFFER.width / 2, BUFFER.height - 3*CHARSET_SIZE, ALIGN_CENTER);
       }
       break;
-      case LEVEL_SCREEN:
+    case LEVEL_SCREEN:
       renderText(`mission #0${currentLevel+1}`, BUFFER.width / 2, BUFFER.height / 2 - 2*(CHARSET_SIZE + 2), ALIGN_CENTER);
       levels[currentLevel].mission.forEach((instruction, i) => {
         renderText(instruction, BUFFER.width / 2, BUFFER.height / 2 + i*2*(CHARSET_SIZE + 2), ALIGN_CENTER);
@@ -688,6 +711,7 @@ function render() {
       entities.forEach(renderRadar);
       entities.forEach(renderEntity);
       renderText(`sonar: ${hero.online ? 'on' : 'off'}line`, BUFFER.width / 2, 2*CHARSET_SIZE, ALIGN_CENTER);
+      renderText(`torpedos: ${hero.ammo.current}`, BUFFER.width / 2, BUFFER.height - 3*CHARSET_SIZE, ALIGN_CENTER);
       break;
     case END_SCREEN:
       if (currentLevel >= levels.length) {
@@ -1167,7 +1191,7 @@ onkeydown = (e) => {
             hero.input.down = 1;
             break;
           case 'Space':
-            if (!hero.dead) {
+            if (!hero.dead && hero.ammo.current > 0) {
               fireTorpedo(hero, hero.collision.group);
             }
             break;
