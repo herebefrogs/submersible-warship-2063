@@ -2,6 +2,7 @@
 gameplay
 ========
 - display 3 torpedo slots (bright yellow or dark yellow) rather than just the count
+- should also generalize the enemy's firing cadence with Ammo (1 torpedo every Xs)
 - web worker to load sound without blocking main loop
 - always centered on player + lerp (have grid move)
 - add parallax to rock formation to suggest 3D

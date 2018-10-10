@@ -17,7 +17,6 @@ let screen = LOADING_SCREEN;
 let lost = false;
 let won = false;
 let currentLevel = 0;
-let levels;
 let hero;
 let entities;
 let raised = [];
@@ -25,6 +24,67 @@ let looseCondition;
 let winCondition;
 let endTime;
 let nbSubSunk = 0;
+const levels = [
+  // #1 (tutorial)
+  {
+    mission: [
+      'enemy mine drifted into perimeter. destroy it.',
+      'turn off sonar to evade torpedos.'
+    ],
+    looseCondition: [
+      ['player', 0.66, 0.66],
+    ],
+    otherEntities: [
+      ['rock', 0.5, 0.5]
+    ],
+    winCondition: [
+      ['mine',0.33, 0.33],
+    ],
+  },
+  // #2
+  {
+    mission: [
+      'enemy subs entered perimeter. sink them all.',
+    ],
+    looseCondition: [
+      ['player', 0.9, 0.9],
+    ],
+    otherEntities: [
+      ['rock', 0.35, 0],
+      ['rock', 0.65, 0.75],
+      ['rock', 0, 0.65],
+      ['rock', 1, 0.375],
+    ],
+    winCondition: [
+      ['sub', 0.1, 0.1],
+      ['sub', 0.1, 0.9],
+      ['sub', 0.9, 0.1],
+      ['sub', 0.4, 0.4],
+    ],
+  },
+  // #3
+  {
+    mission: [
+      'enemy sub broke down in perimeter. eliminate it.',
+      'enemy mines detected, proceed with caution',
+    ],
+    looseCondition: [
+      ['player', 0.1 , 0.9],
+    ],
+    otherEntities: [
+      ['mine', 0.25, 0.25],
+      ['mine', 0.5, 0.25],
+      ['mine', 0.55, 0.6],
+      ['mine', 0.8, 0.8],
+      ['mine', 0.9, 0.1],
+      ['rock', 0.35, 1],
+      ['rock', 0.6, 0],
+    ],
+    winCondition: [
+      ['sub_disabled', 0.8, 0.35],
+    ],
+  },
+];
 
 const FRIEND_GROUP = 1;
 const ENEMY_GROUP = 2;
@@ -127,74 +187,11 @@ let lastTime;
 let requestId;
 let running = true;
 
-// onresize() must have been called first as this relies on BUFFER.width/height
-function initLevels() {
-  levels = [
-    // #1 (tutorial)
-    {
-      mission: [
-        'enemy mine drifted into perimeter. destroy it.',
-        'turn off sonar to evade torpedos.'
-      ],
-      looseCondition: [
-        ['player', BUFFER.width * 2 / 3, BUFFER.height * 2 / 3],
-      ],
-      otherEntities: [
-        ['rock', BUFFER.width / 2, BUFFER.height / 2]
-      ],
-      winCondition: [
-        ['mine', BUFFER.width / 3, BUFFER.height / 3],
-      ],
-    },
-    // #2
-    {
-      mission: [
-        'enemy subs entered perimeter. sink them all.',
-      ],
-      looseCondition: [
-        ['player', BUFFER.width * 0.9, BUFFER.height * 0.9],
-      ],
-      otherEntities: [
-        ['rock', BUFFER.width * 0.35, 0],
-        ['rock', BUFFER.width * 0.65, BUFFER.height * 0.75],
-        ['rock', 0, BUFFER.height * 0.65],
-        ['rock', BUFFER.width, BUFFER.height * 3 / 8],
-      ],
-      winCondition: [
-        ['sub', BUFFER.width * 0.1, BUFFER.height * 0.1],
-        ['sub', BUFFER.width * 0.1, BUFFER.height * 0.9],
-        ['sub', BUFFER.width * 0.9, BUFFER.height * 0.1],
-        ['sub', BUFFER.width * 0.4, BUFFER.height * 0.4],
-      ],
-    },
-    // #3
-    {
-      mission: [
-        'enemy sub broke down in perimeter. eliminate it.',
-        'enemy mines detected, proceed with caution',
-      ],
-      looseCondition: [
-        ['player', BUFFER.width * 0.1 , BUFFER.height * 0.9],
-      ],
-      otherEntities: [
-        ['mine', BUFFER.width * 0.25, BUFFER.height * 0.25],
-        ['mine', BUFFER.width * 0.5, BUFFER.height * 0.25],
-        ['mine', BUFFER.width * 0.55, BUFFER.height * 0.6],
-        ['mine', BUFFER.width * 0.8, BUFFER.height * 0.8],
-        ['mine', BUFFER.width * 0.9, BUFFER.height * 0.1],
-        ['rock', BUFFER.width * 0.35, BUFFER.height],
-        ['rock', BUFFER.width * 0.6, 0],
-      ],
-      winCondition: [
-        ['sub_disabled', BUFFER.width * 0.8, BUFFER.height * 0.35],
-      ],
-    },
-  ];
-};
-
 // GAMEPLAY HANDLERS
 
 function hydrate([ type, x, y ]) {
+  x *= BUFFER.width;
+  y *= BUFFER.height;
   switch (type) {
     case 'player':
       return createEntity(type, {
@@ -1135,7 +1132,6 @@ onload = async (e) => {
   // TODO put this is a web worker so the loading animation loop can work
   setTimeout(function() {
     initTileset();
-    initLevels();
     initSound();
   }, 100);
 };
