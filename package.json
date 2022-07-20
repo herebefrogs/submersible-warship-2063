@@ -14,7 +14,7 @@
     "browser-sync": "^2.26.7",
     "htmlmin": "0.0.7",
     "rollup": "^0.57.1",
-    "terser": "^3.8.1",
+    "terser": "^4.8.1",
     "tinify": "^1.6.0-beta.2",
     "xmlhttprequest-ssl": ">=1.6.2",
     "yargs-parser": ">=5.0.0-security.0",
